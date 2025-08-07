@@ -1,9 +1,9 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const woodCountElement = document.getElementById('woodCount');
-const stoneCountElement = document.getElementById('stoneCount');
-const populationCountElement = document.getElementById('populationCount');
-const populationCapElement = document.getElementById('population-count');
+const woodCountElement = document.getElementById('wood-count');
+const stoneCountElement = document.getElementById('stone-count');
+const populationCountElement = document.getElementById('population-count');
+const populationCapElement = document.getElementById('population-cap');
 const buildMenuElement = document.getElementById('build-menu');
 const messageBoxElement = document.getElementById('message-box');
 
@@ -20,9 +20,9 @@ const gameState = {
 
 const buildingBlueprints = {
     'house': { name: 'House', cost: {wood: 20, stone: 10}, width: 60, height: 50, color: '#d2b48c', providesCap: 5 },
-    'woodcutter': {name: 'Woodcutter', cost: {wood: 20}},
-    'quarry': {name: 'Quarry', cost: {wood: 15, stone: 15}, width:80, height: 40, color},
-};
+    'woodcutter': {name: 'Woodcutter', cost: {wood: 20}, width: 70, height: 60, color: '#8b4513', produces: { wood: 0.02 }},
+    'quarry': {name: 'Quarry', cost: {wood: 15, stone: 15}, width:80, height: 40, color: '#a9a9a9', produces: { stone: 0.01 }},
+}
 function update() {
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
@@ -63,21 +63,53 @@ function draw() {
         ctx.globalAlpha = 1.0;
     }
 
-    woodCountEl.textContent = Math.floor(gameState.resources.wood);
-    stoneCountEl.textContent = Math.floor(gameState.resources.stone);
-    populationCountEl.textContent = gameState.population;
-    populationCapEl.textContent = gameState.populationCap;
+    woodCountElement.textContent = Math.floor(gameState.resources.wood);
+    stoneCountElement.textContent = Math.floor(gameState.resources.stone);
+    populationCountElement.textContent = gameState.population;
+    populationCapElement.textContent = gameState.populationCap;
 }
 function gameLoop() {
     update();
     draw();
     requestAnimationFrame(gameLoop);
 }
-const mousePosition = { x: null, y: null };
+const mousePos = { x: null, y: null };
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
-    mousePosition.x = e.clientX - rect.left;
-    mousePosition.y = e.clientY - rect.top;
+    mousePos.x = e.clientX - rect.left;
+    mousePos.y = e.clientY - rect.top;
+});
+canvas.addEventListener('click', () => {
+    if (!gameState.buildMode) return;
+
+    const blueprint = buildingBlueprints[gameState.buildMode];
+
+    let canAfford = true;
+    for (const resource in blueprint.cost) {
+        if (gameState.resources[resource] < blueprint.cost[resource]) {
+            canAfford = false;
+            showMessage(`Not enough ${resource}!`, 2000);
+            break;
+        }
+    }
+
+    if (canAfford) {
+        for (const resource in blueprint.cost) {
+            gameState.resources[resource] -= blueprint.cost[resource];
+        }
+
+        gameState.buildings.push({
+            type: gameState.buildMode,
+            x: mousePos.x - blueprint.width / 2,
+            y: mousePos.y - blueprint.height,
+            width: blueprint.width,
+            height: blueprint.height,
+            color: blueprint.color,
+        });
+        
+        gameState.buildMode = null;
+        canvas.classList.remove('build-cursor');
+    }
 });
 canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -90,10 +122,10 @@ canvas.addEventListener('contextmenu', (e) => {
 
 let messageTimeout;
 function showMessage(text, duration) {
-    messageBoxEl.textContent = text;
+    messageBoxElement.textContent = text;
     clearTimeout(messageTimeout);
     messageTimeout = setTimeout(() => {
-        messageBoxEl.textContent = '';
+        messageBoxElement.textContent = '';
     }, duration);
 }
 
@@ -117,12 +149,11 @@ function init() {
             canvas.classList.add('build-cursor');
             showMessage(`Placing ${blueprint.name}. Right-click to cancel.`, 3000);
         });
-        buildMenuEl.appendChild(button);
+        buildMenuElement.appendChild(button);
     }
-
     requestAnimationFrame(gameLoop);
 }
-        
+
 window.addEventListener('resize', () => {
     const mainRect = canvas.parentElement.getBoundingClientRect();
     canvas.width = mainRect.width;
