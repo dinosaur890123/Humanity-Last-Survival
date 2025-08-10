@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Humanity's Last Survival</title>
+    <title>Humanity's Last Survival - Colony Builder</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,12 +15,28 @@
         <div id="resource-display">
             <p>Wood: <span id="wood-count">0</span></p>
             <p>Stone: <span id="stone-count">0</span></p>
+            <p>Food: <span id="food-count">0</span></p>
             <p>Population: <span id="population-count">0</span>/<span id="population-cap">0</span></p>
+            <p>Unemployed: <span id="unemployed-workers-count">0</span></p>
+            <p>Happiness: <span id="happiness-count">100</span></p>
         </div>
         <hr>
         <h2>Build</h2>
         <div id="build-menu">
         </div>
+
+        <div id="inspector-panel" class="hidden">
+            <h2 id="inpsector-name"></h2>
+            <div id="inspector-workers">
+                <p>Workers: <span id="workers-assigned">0</span>/<span id="workers-required">0</span></p>
+                <div class="worker-buttons">
+                    <button id="remove-worker-button">-</button>
+                    <button id="add-worker-button">+</button>
+                </div>
+            </div>
+            <button id="close-inspector-button">Close</button>
+        </div>
+
         <div id="message-box"></div>
     </aside>
 <script src ="script.js" defer></script>
