@@ -51,6 +51,15 @@ hr {
     margin: 1.5rem 0;
     flex-direction: column;
 }
+.build-category-header {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-top: 1rem;
+    color: #67e8f9;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid #4b5563;
+}
 #build-menu button {
     width: 100%;
     text-align: left;
