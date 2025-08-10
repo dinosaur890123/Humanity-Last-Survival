@@ -373,20 +373,20 @@ function init() {
 
         for (const building of categories[categoryName]) {
             const button = document.createElement('button');
+            
             let costString = Object.entries(building.cost)
                 .map(([res, val]) => `${val} ${res}`)
                 .join(', ');
-            let infoParts = ['Cost: ${costString}'];
+
+            let infoParts = [`Cost: ${costString}`];
             if (building.providesCap) {
-                infoParts.push('Capacity: ${building.providesCap}');
+                infoParts.push(`Capacity: ${building.providesCap}`);
             }
             if (building.providesHappiness) {
-                infoParts.push('Happiness: +{building.providesHappiness}');
+                infoParts.push(`Happiness: +${building.providesHappiness}`);
             }
             let additionalInfo = infoParts.join(' | ');
-
-            button.innerHTML = `${building.name} <br><small>Cost: ${costString}</small>`;
-            
+            button.innerHTML = `${building.name} <br><small>${additionalInfo}</small>`;            
             button.addEventListener('click', () => {
                 gameState.buildMode = building.type;
                 canvas.classList.add('build-cursor');
