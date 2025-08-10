@@ -43,7 +43,30 @@ hr {
     border: none;
     border-top: 1px solid #4b5563;
     margin: 1.5rem 0;
-
+}
+.tabs {
+    display: flex;
+    margin-bottom: 1rem;
+}
+.tab-button {
+    flex-grow: 1;
+    padding: 0.5rem;
+    color: white;
+    cursor: pointer;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+}
+.tab-button.active {
+    background-color: #0891b2;
+    border-bottom: 1px solid #0891b2;
+}
+.tab-content {
+    display: none;
+    flex-direction: column;
+    gap: 0.75 rem;
+}
+.tab-content.active {
+    display: flex;
 }
 #build-menu {
     display: flex;

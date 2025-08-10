@@ -395,10 +395,36 @@ function init() {
             buildMenuElement.appendChild(button);
         }
     }
-
     requestAnimationFrame(gameLoop);
 }
+function populateResearchPanel() {
+    researchPanelElement.innerHTML = '';
+    for (const techId in researchTree) {
+        const tech = researchTree[techId];
+        const button = document.createElement('button');
         
+        const isUnlocked = gameState.unlockedTechs.includes(techId);
+        
+        button.innerHTML = `${tech.name}<br><small>Cost: ${tech.cost} Knowledge</small>`;
+        button.disabled = isUnlocked || gameState.resources.knowledge < tech.cost;
+        
+        if (isUnlocked) {
+            button.innerHTML += `<br><small>Researched</small>`;
+        }
+
+        button.addEventListener('click', () => {
+            if (gameState.resources.knowledge >= tech.cost) {
+                gameState.resources.knowledge -= tech.cost;
+                gameState.unlockedTechs.push(techId);
+                tech.unlocks.forEach(buildingId => {
+                    buildingBlueprints[buildingId].locked = false;
+                });
+                refreshUI();
+            }
+        });
+        researchPanelElement.appendChild(button);
+    }
+}
 window.addEventListener('resize', () => {
     const mainRect = canvas.parentElement.getBoundingClientRect();
     canvas.width = mainRect.width;
