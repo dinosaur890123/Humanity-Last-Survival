@@ -11,7 +11,8 @@ const unemployedWorkersElement = document.getElementById('unemployed-workers-cou
 const happinessElement = document.getElementById('happiness-count');
 const buildMenuElement = document.getElementById('build-menu');
 const messageBoxElement = document.getElementById('message-box');
-
+const scenarioTitleElement = document.getElementById('scenario-title')
+const objectivesListElement = document.getElementById('objectives-list');
 const inspectorPanel = document.getElementById('inspector-panel');
 const inspectorName = document.getElementById('inspector-name');
 const workersAssignedSpan = document.getElementById('workers-assigned');
@@ -27,6 +28,7 @@ const gameState = {
         food: 100,
         sand: 0,
         glass: 0,
+        knowledge: 0,
     },
     buildings: [],
     population: 0,
@@ -35,6 +37,7 @@ const gameState = {
     happiness: 100,
     buildMode: null,
     selectedBuilding: null,
+    unlockedTechs: [],
 };
 
 const buildingBlueprints = {
@@ -49,6 +52,7 @@ const buildingBlueprints = {
     'sawmill': {name: 'Sawmill', category: 'Industry', cost: {wood: 80, stone: 40}, width: 60, height: 60, color: '#800000', produces: { wood: 0.08 }, workersRequired: 3, imgSrc: 'assets/sawmill.png'},
     'glassworks': {name: 'Glassworks', category: 'Industry', cost: {wood: 50, stone: 30}, width: 60, height: 60, color: '#06b6d4', consumes: { sand: 0.02, wood: 0.01 }, produces: { glass: 0.01 }, workersRequired: 3, imgSrc: 'assets/glassworks.png'},
     'park': { name: 'Park', category: 'Life', cost: {wood: 50, stone: 20}, width: 60, height: 60, color: '#22c55e', providesHappiness: 5, imgSrc: 'assets/park.png' },
+    'research_lab': {name: 'Research lab', category: 'Industry', cost: {wood: 100, stone: 50}, width: 60, height: 60, color: '#a78bfa', produces: { knowledge: 0.01 }, workersRequired: 4, imgSrc: 'assets/research_lab.png'},
 }
 
 for (const type in buildingBlueprints) {
@@ -184,15 +188,17 @@ function draw() {
         }
         ctx.globalAlpha = 1.0;
     }
-
     if (woodCountElement) woodCountElement.textContent = Math.floor(gameState.resources.wood);
     if (stoneCountElement) stoneCountElement.textContent = Math.floor(gameState.resources.stone);
     if (foodCountElement) foodCountElement.textContent = Math.floor(gameState.resources.food);
     if (sandCountElement) sandCountElement.textContent = Math.floor(gameState.resources.sand);
     if (glassCountElement) glassCountElement.textContent = Math.floor(gameState.resources.glass);
+    if (knowledgeCountElement) knowledgeCountElement.textContent = Math.floor(gameState.resources.knowledge);
     if (populationCountElement) populationCountElement.textContent = gameState.population;
     if (populationCapElement) populationCapElement.textContent = gameState.populationCap;
-    
+    if (unemployedWorkersElement) unemployedWorkersElement.textContent = gameState.unemployedWorkers;
+    if (happinessElement) happinessElement.textContent = Math.floor(gameState.happiness);
+
     if (unemployedWorkersElement) {
         unemployedWorkersElement.textContent = gameState.unemployedWorkers;
     }

@@ -22,6 +22,34 @@ aside {
     flex-direction: column;
     overflow-y: auto;
 }
+#scenario-panel {
+    background-color: #374151;
+    border-radius: 0.5;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+#scenario-panel h2 {
+    font-size: 1.25rem;
+    margin-top: 0;
+    text-align: center;
+}
+#objectives-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+#objectives-list li {
+    padding: 0.25rem 0;
+    color: #9ca3af;
+}
+#objectives-list li.completed {
+    text-decoration: line-through;
+    color: #4ade80;
+}
+#objectives-list li.active {
+    color: #fde047; 
+    font-weight: bold;
+}
 h1, h2 {
     font-size: 1.5rem;
     font-weight: 700;
@@ -35,10 +63,16 @@ h1, h2 {
     font-size: 1.125rem;
     margin-bottom: 0.5rem;
 }
-#wood-count { color: #4ade80; }
-#stone-count { color: #9ca3af; }
-#population-count { color: #60a5fa; }
-#population-cap { color: #93c5fd; }
+#wood-count {color: #4ade80;}
+#stone-count {color: #9ca3af;}
+#food-count {color: #f59e0b;}
+#sand-count {color: #eab308;}
+#glass-count {color: #06b6d4;}
+#knowledge-count {color: #a78bfa;}
+#population-count {color: #60a5fa;}
+#population-cap {color: #93c5fd;}
+#unemployed-worker-count {color: #fca5a5;}
+#happiness-count { color: #fde047; }
 hr {
     border: none;
     border-top: 1px solid #4b5563;
@@ -83,7 +117,7 @@ hr {
     padding-bottom: 0.25rem;
     border-bottom: 1px solid #4b5563;
 }
-#build-menu button {
+#build-menu button, #research-panel button {
     width: 100%;
     text-align: left;
     padding: 0.75rem;
@@ -94,12 +128,18 @@ hr {
     cursor: pointer;
     transition: background-color 0.2s ease-in-out;
 }
-#build-menu button:hover {
+#build-menu button:hover, #research-panel button:hover {
     background-color: #0891b2;
 }
-#build-menu button small {
+#build-menu button:disabled, #research-panel button:disabled {
+    background-color: #1f2937;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+#build-menu button small, #research-panel button:disabled {
     color: #9ca3af;
 }
+
 #inspector-panel {
     margin-top: auto;
     padding: 1rem;
