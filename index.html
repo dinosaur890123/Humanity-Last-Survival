@@ -3,37 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Humanity's Last Survival - Colony Builder</title>
+    <title>Humanity's Last Survival</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <main>
         <canvas id="gameCanvas"></canvas>
     </main>
-    <aside>
-        <h1>Resources</h1>
+    <div id="top-ui-container">
         <div id="resource-display">
             <p>Wood: <span id="wood-count">0</span></p>
             <p>Stone: <span id="stone-count">0</span></p>
             <p>Food: <span id="food-count">0</span></p>
             <p>Sand: <span id="sand-count">0</span></p>
             <p>Glass: <span id="glass-count">0</span></p>
+            <p>Tools: <span id="tools-count">0</span></p>
             <p>Knowledge: <span id="knowledge-count">0</span></p>
             <p>Population: <span id="population-count">0</span>/<span id="population-cap">0</span></p>
-            <p>Unemployed: <span id="unemployed-workers-count">0</span></p>        
-            <p>Happiness: <span id="happiness-count">100</span></p>
+            <p>Unemployed: <span id="unemployed-workers-count">0</span></p>
+            <p>Happiness: <span id="happiness-count">100</span>%</p>
         </div>
-        <hr>
+        <div id="scenario-panel">
+            <h2 id="scenario-title"></h2>
+            <ul id="objectives-list"></ul>
+        </div>
+    </div>
+    <aside>
         <div class="tabs">
             <button class="tab-button active" onclick="openTab('build-menu')">Build</button>
-            <button class="tab-button" onclick="openTab('research-panel')">Reseearch</button>
+            <button class="tab-button" onclick="openTab('research-panel')">Research</button>
         </div>
-        <h2>Build</h2>
-        <div id="build-menu">
-        </div>
-
+        <div id="build-menu" class="tab-content active"></div>
+        <div id="research-panel" class="tab-content"></div>
         <div id="inspector-panel" class="hidden">
-            <h2 id="inpsector-name"></h2>
+            <h2 id="inspector-name"></h2>
             <div id="inspector-workers">
                 <p>Workers: <span id="workers-assigned">0</span>/<span id="workers-required">0</span></p>
                 <div class="worker-buttons">
