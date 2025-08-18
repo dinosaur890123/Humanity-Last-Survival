@@ -10,6 +10,7 @@
     <main>
         <canvas id="gameCanvas"></canvas>
     </main>
+
     <div id="top-ui-container">
         <div id="resource-display">
             <p>Wood: <span id="wood-count">0</span></p>
@@ -23,8 +24,9 @@
             <p>Unemployed: <span id="unemployed-workers-count">0</span></p>
             <p>Happiness: <span id="happiness-count">100</span>%</p>
         </div>
+
         <div id="scenario-panel">
-            <h2 id="scenario-title"></h2>
+            <h2 id="scenario-title">The First Skyscraper <span id="scenario-toggle-icon">▼</span></h2>
             <ul id="objectives-list"></ul>
         </div>
     </div>
@@ -48,6 +50,22 @@
         </div>
         <div id="message-box"></div>
     </aside>
+    <button id="open-worker-panel-button">Manage Workers</button>
+    <div id="worker-panel-modal" class="hidden">
+        <div class="modal-content">
+            <h2>Worker Management</h2>
+            <ul id="worker-assignments-list"></ul>
+            <button id="close-worker-panel-button">Close</button>
+        </div>
+    </div>
+    <div id="stats-panel-modal" class="hidden">
+        <div class="modal-content">
+            <h2 id="stats-name"></h2>
+                <img id="stats-image" src="" alt="Building image">
+                <ul id="stats-list"></ul>
+                <button id="close-stats-panel-button">Close</button>
+        </div>
+    </div>
 <script src ="script.js" defer></script>
 </body>
 </html>

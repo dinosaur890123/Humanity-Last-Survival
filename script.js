@@ -16,6 +16,7 @@ const researchPanelElement = document.getElementById('research-panel');
 const messageBoxElement = document.getElementById('message-box');
 const scenarioTitleElement = document.getElementById('scenario-title');
 const objectivesListElement = document.getElementById('objectives-list');
+const scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
 
 const inspectorPanel = document.getElementById('inspector-panel');
 const inspectorName = document.getElementById('inspector-name');
@@ -24,6 +25,17 @@ const workersRequiredSpan = document.getElementById('workers-required');
 const addWorkerButton = document.getElementById('add-worker-button');
 const removeWorkerButton = document.getElementById('remove-worker-button');
 const closeInspectorButton = document.getElementById('close-inspector-button');
+
+const openWorkerPanelButton = document.getElementById('open-worker-panel-button');
+const workerPanelModal = document.getElementById('worker-panel-modal');
+const closeWorkerPanelButton = document.getElementById('close-worker-panel-button');
+const workerAssignmentsList = document.getElementById('worker-assignments-list');
+
+const statsPanelModal = document.getElementById('stats-panel-modal');
+const statsName = document.getElementById('stats-name');
+const statsImage = document.getElementById('stats-image');
+const statsList = document.getElementById('stats-list');
+const closeStatsPanelButton = document.getElementById('close-stats-panel-button');
 
 const gameState = {
     resources: { wood: 50, stone: 50, food: 100, sand: 0, glass: 0, tools: 20, knowledge: 0 },
@@ -35,6 +47,7 @@ const gameState = {
     buildMode: null,
     selectedBuilding: null,
     unlockedTechs: [],
+    currentScenarioIndex: 0,
     currentObjectiveIndex: 0,
     scenarioComplete: false,
 };
@@ -46,12 +59,12 @@ const buildingBlueprints = {
     'skyscraper': { name: 'Skyscraper', category: 'Housing', cost: {wood: 100, stone: 80, glass: 50}, width: 60, height: 60, color: '#4b5563', providesCap: 50, providesHappiness: 5, imgSrc: 'assets/skyscraper.png', locked: true },
     'farm': {name: 'Farm', category: 'Food', cost: {wood: 30, stone: 10}, width: 60, height: 60, color: '#b8860b', produces: { food: 0.03 }, workersRequired: 2, imgSrc: 'assets/farm.png'},
     'woodcutter': {name: 'Woodcutter', category: 'Resources', cost: {wood: 20}, width: 60, height: 60, color: '#8b4513', produces: { wood: 0.02 }, workersRequired: 1, imgSrc: 'assets/woodcutter.png'},
-    'quarry': {name: 'Quarry', category: 'Resources', cost: {wood: 15, stone: 15}, width: 60, height: 60, color: '#a9a9a9', produces: { stone: 0.01 }, workersRequired: 2, imgSrc: 'assets/quarry.png', consumes: { tools: 0.001 }},
+    'quarry': {name: 'Quarry', category: 'Resources', cost: {wood: 15, stone: 15}, width: 60, height: 60, color: '#a9a9a9', produces: { stone: 0.015 }, workersRequired: 2, imgSrc: 'assets/quarry.png', consumes: { tools: 0.001 }},
     'sand_pit': {name: 'Sand Pit', category: 'Resources', cost: {wood: 25, stone: 10}, width: 60, height: 60, color: '#eab308', produces: { sand: 0.02 }, workersRequired: 2, imgSrc: 'assets/sand_pit.png'},
     'sawmill': {name: 'Sawmill', category: 'Industry', cost: {wood: 80, stone: 40}, width: 60, height: 60, color: '#800000', produces: { wood: 0.08 }, workersRequired: 3, imgSrc: 'assets/sawmill.png', locked: true, consumes: { tools: 0.002 }},
     'glassworks': {name: 'Glassworks', category: 'Industry', cost: {wood: 50, stone: 30}, width: 60, height: 60, color: '#06b6d4', consumes: { sand: 0.02, wood: 0.01, tools: 0.002 }, produces: { glass: 0.01 }, workersRequired: 3, imgSrc: 'assets/glassworks.png', locked: true },
     'toolsmith': {name: 'Toolsmith', category: 'Industry', cost: {wood: 40, stone: 40}, width: 60, height: 60, color: '#f97316', consumes: { wood: 0.01, stone: 0.01 }, produces: { tools: 0.01 }, workersRequired: 2, imgSrc: 'assets/toolsmith.png'},
-    'research_lab': {name: 'Research Lab', category: 'Industry', cost: {wood: 100, stone: 50}, width: 60, height: 60, color: '#a78bfa', produces: { knowledge: 0.01 }, workersRequired: 4, imgSrc: 'assets/research_lab.png'},
+    'research_lab': {name: 'Research Lab', category: 'Industry', cost: {wood: 100, stone: 50}, width: 60, height: 60, color: '#a78bfa', produces: { knowledge: 0.02 }, workersRequired: 4, imgSrc: 'assets/research_lab.png'},
     'park': { name: 'Park', category: 'Life', cost: {wood: 50, stone: 20}, width: 60, height: 60, color: '#22c55e', providesHappiness: 5, imgSrc: 'assets/park.png' },
 }
 
@@ -61,15 +74,26 @@ const researchTree = {
     'urban_planning': { name: 'Urban Planning', cost: 250, unlocks: ['skyscraper'] },
 };
 
-const scenario = {
-    title: "The First Skyscraper",
-    objectives: [
-        { text: "Reach a population of 20", condition: () => gameState.population >= 20, completed: false },
-        { text: "Produce 50 Glass", condition: () => gameState.resources.glass >= 50, completed: false },
-        { text: "Research Urban Planning", condition: () => gameState.unlockedTechs.includes('urban_planning'), completed: false },
-        { text: "Build a Skyscraper", condition: () => gameState.buildings.some(b => b.type === 'skyscraper'), completed: false },
-    ]
-};
+const scenarios = [
+    {
+        title: "Getting Started",
+        objectives: [
+            { text: "Build a Shack or House", condition: () => gameState.buildings.some(b => b.type === 'shack' || b.type === 'house'), completed: false },
+            { text: "Reach a population of 5", condition: () => gameState.population >= 5, completed: false },
+            { text: "Build a Woodcutter", condition: () => gameState.buildings.some(b => b.type === 'woodcutter'), completed: false },
+            { text: "Assign a worker to the Woodcutter", condition: () => gameState.buildings.some(b => b.type === 'woodcutter' && b.workersAssigned > 0), completed: false },
+        ]
+    },
+    {
+        title: "The First Skyscraper",
+        objectives: [
+            { text: "Reach a population of 20", condition: () => gameState.population >= 20, completed: false },
+            { text: "Produce 50 Glass", condition: () => gameState.resources.glass >= 50, completed: false },
+            { text: "Research Urban Planning", condition: () => gameState.unlockedTechs.includes('urban_planning'), completed: false },
+            { text: "Build a Skyscraper", condition: () => gameState.buildings.some(b => b.type === 'skyscraper'), completed: false },
+        ]
+    }
+];
 
 for (const type in buildingBlueprints) {
     const blueprint = buildingBlueprints[type];
@@ -86,15 +110,25 @@ for (const type in buildingBlueprints) {
 function updateScenario() {
     if (gameState.scenarioComplete) return;
 
-    const currentObjective = scenario.objectives[gameState.currentObjectiveIndex];
+    const currentScenario = scenarios[gameState.currentScenarioIndex];
+    const currentObjective = currentScenario.objectives[gameState.currentObjectiveIndex];
+
     if (currentObjective && currentObjective.condition()) {
         currentObjective.completed = true;
         gameState.currentObjectiveIndex++;
         populateScenarioPanel();
 
-        if (gameState.currentObjectiveIndex >= scenario.objectives.length) {
-            gameState.scenarioComplete = true;
-            showMessage("Scenario Complete! You Win!", 10000);
+        if (gameState.currentObjectiveIndex >= currentScenario.objectives.length) {
+            gameState.currentScenarioIndex++;
+            if (gameState.currentScenarioIndex >= scenarios.length) {
+                gameState.scenarioComplete = true;
+                showMessage("All Scenarios Complete! You Win!", 10000);
+            } else {
+                gameState.currentObjectiveIndex = 0;
+                showMessage(`Scenario Complete! Next: ${scenarios[gameState.currentScenarioIndex].title}`, 5000);
+                scenarios[gameState.currentScenarioIndex].objectives.forEach(o => o.completed = false);
+                populateScenarioPanel();
+            }
         }
     }
 }
@@ -115,7 +149,7 @@ function update() {
     let targetHappiness = baseHappiness + happinessFactors;
     if (targetHappiness > 100) targetHappiness = 100;
     if (targetHappiness < 0) targetHappiness = 0;
-    gameState.happiness += (targetHappiness - gameState.happiness) * 0.001;
+    gameState.happiness += (targetHappiness - gameState.happiness) * 0.0005;
 
     let happinessModifier = 1;
     if (gameState.happiness > 70) happinessModifier = 1.1;
@@ -175,9 +209,12 @@ function update() {
     }
     gameState.populationCap = newPopCap;
 
-    if (gameState.population < gameState.populationCap && Math.random() < 0.001) {
-        gameState.population++;
-        gameState.unemployedWorkers++;
+    if (gameState.population < gameState.populationCap) {
+        const growthChance = (gameState.population === 0) ? 0.01 : 0.008;
+        if (Math.random() < growthChance) {
+            gameState.population++;
+            gameState.unemployedWorkers++;
+        }
     }
 }
 
@@ -347,43 +384,66 @@ function updateInspectorUI() {
     workersAssignedSpan.textContent = building.workersAssigned;
     workersRequiredSpan.textContent = blueprint.workersRequired;
 }
-
 function hideInspector() {
     gameState.selectedBuilding = null;
     inspectorPanel.classList.add('hidden');
 }
 
-addWorkerButton.addEventListener('click', () => {
-    const building = gameState.selectedBuilding;
-    if (!building) return;
+function setupEventListeners() {
+    addWorkerButton.addEventListener('click', () => {
+        const building = gameState.selectedBuilding;
+        if (!building) return;
 
-    const blueprint = buildingBlueprints[building.type];
-    if (gameState.unemployedWorkers > 0 && building.workersAssigned < blueprint.workersRequired) {
-        building.workersAssigned++;
-        gameState.unemployedWorkers--;
+        const blueprint = buildingBlueprints[building.type];
+        if (gameState.unemployedWorkers > 0 && building.workersAssigned < blueprint.workersRequired) {
+            building.workersAssigned++;
+            gameState.unemployedWorkers--;
+            updateInspectorUI();
+        }
+    });
+
+    removeWorkerButton.addEventListener('click', () => {
+        const building = gameState.selectedBuilding;
+        if (!building || building.workersAssigned === 0) return;
+
+        building.workersAssigned--;
+        gameState.unemployedWorkers++;
         updateInspectorUI();
-    }
-});
+    });
 
-removeWorkerButton.addEventListener('click', () => {
-    const building = gameState.selectedBuilding;
-    if (!building || building.workersAssigned === 0) return;
+    closeInspectorButton.addEventListener('click', hideInspector);
 
-    building.workersAssigned--;
-    gameState.unemployedWorkers++;
-    updateInspectorUI();
-});
+    scenarioTitleElement.addEventListener('click', () => {
+        objectivesListElement.classList.toggle('collapsed');
+        if (objectivesListElement.classList.contains('collapsed')) {
+            scenarioToggleIcon.style.transform = 'rotate(-90deg)';
+        } else {
+            scenarioToggleIcon.style.transform = 'rotate(0deg)';
+        }
+    });
 
-closeInspectorButton.addEventListener('click', hideInspector);
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (gameState.buildMode) {
+            gameState.buildMode = null;
+            canvas.classList.remove('build-cursor');
+            showMessage('Build cancelled.', 1500);
+        }
+    });
 
-canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    if (gameState.buildMode) {
-        gameState.buildMode = null;
-        canvas.classList.remove('build-cursor');
-        showMessage('Build cancelled.', 1500);
-    }
-});
+    openWorkerPanelButton.addEventListener('click', () => {
+        workerPanelModal.classList.remove('hidden');
+        populateWorkerPanel();
+    });
+
+    closeWorkerPanelButton.addEventListener('click', () => {
+        workerPanelModal.classList.add('hidden');
+    });
+
+    closeStatsPanelButton.addEventListener('click', () => {
+        statsPanelModal.classList.add('hidden');
+    });
+}
 
 let messageTimeout;
 function showMessage(text, duration) {
@@ -398,12 +458,18 @@ function refreshUI() {
     populateBuildMenu();
     populateResearchPanel();
     populateScenarioPanel();
+    if (!workerPanelModal.classList.contains('hidden')) {
+        populateWorkerPanel();
+    }
 }
 
 function populateScenarioPanel() {
-    scenarioTitleElement.textContent = scenario.title;
+    const currentScenario = scenarios[gameState.currentScenarioIndex];
+    if (!currentScenario) return;
+
+    scenarioTitleElement.firstChild.textContent = currentScenario.title + ' ';
     objectivesListElement.innerHTML = '';
-    scenario.objectives.forEach((obj, index) => {
+    currentScenario.objectives.forEach((obj, index) => {
         const li = document.createElement('li');
         li.textContent = obj.text;
         if (obj.completed) {
@@ -442,6 +508,9 @@ function populateBuildMenu() {
         buildMenuElement.appendChild(header);
 
         for (const building of categories[categoryName]) {
+            const container = document.createElement('div');
+            container.className = 'build-button-container';
+
             const button = document.createElement('button');
             
             let costString = Object.entries(building.cost)
@@ -464,9 +533,96 @@ function populateBuildMenu() {
                 canvas.classList.add('build-cursor');
                 hideInspector();
             });
-            buildMenuElement.appendChild(button);
+
+            const viewButton = document.createElement('span');
+            viewButton.className = 'view-stats-button';
+            viewButton.textContent = 'View';
+            viewButton.onclick = (e) => {
+                e.stopPropagation();
+                showStatsPanel(building.type);
+            };
+
+            container.appendChild(button);
+            container.appendChild(viewButton);
+            buildMenuElement.appendChild(container);
         }
     }
+}
+
+function showStatsPanel(type) {
+    const blueprint = buildingBlueprints[type];
+    statsName.textContent = blueprint.name;
+    statsImage.src = blueprint.imgSrc;
+    statsList.innerHTML = '';
+
+    const createStat = (label, value) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${label}:</strong> ${value}`;
+        statsList.appendChild(li);
+    };
+
+    if (blueprint.providesCap) createStat('Capacity', blueprint.providesCap);
+    if (blueprint.providesHappiness) createStat('Happiness', `+${blueprint.providesHappiness}`);
+    if (blueprint.workersRequired) createStat('Workers', blueprint.workersRequired);
+    if (blueprint.produces) createStat('Produces', Object.entries(blueprint.produces).map(([k,v]) => `${v*60}/min ${k}`).join(', '));
+    if (blueprint.consumes) createStat('Consumes', Object.entries(blueprint.consumes).map(([k,v]) => `${v*60}/min ${k}`).join(', '));
+    
+    statsPanelModal.classList.remove('hidden');
+}
+
+function populateWorkerPanel() {
+    workerAssignmentsList.innerHTML = '';
+    const workplaces = gameState.buildings.filter(b => buildingBlueprints[b.type].workersRequired);
+
+    if (workplaces.length === 0) {
+        workerAssignmentsList.innerHTML = '<li>No workplaces built yet.</li>';
+        return;
+    }
+
+    workplaces.forEach(building => {
+        const blueprint = buildingBlueprints[building.type];
+        const li = document.createElement('li');
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = blueprint.name;
+
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'worker-buttons';
+        controlsDiv.style.display = 'flex';
+        controlsDiv.style.alignItems = 'center';
+        controlsDiv.style.gap = '0.5rem';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '-';
+        removeBtn.onclick = () => {
+            if (building.workersAssigned > 0) {
+                building.workersAssigned--;
+                gameState.unemployedWorkers++;
+                refreshUI();
+            }
+        };
+
+        const statusSpan = document.createElement('span');
+        statusSpan.textContent = `${building.workersAssigned}/${blueprint.workersRequired}`;
+
+        const addBtn = document.createElement('button');
+        addBtn.textContent = '+';
+        addBtn.onclick = () => {
+            if (gameState.unemployedWorkers > 0 && building.workersAssigned < blueprint.workersRequired) {
+                building.workersAssigned++;
+                gameState.unemployedWorkers--;
+                refreshUI();
+            }
+        };
+
+        controlsDiv.appendChild(removeBtn);
+        controlsDiv.appendChild(statusSpan);
+        controlsDiv.appendChild(addBtn);
+
+        li.appendChild(nameSpan);
+        li.appendChild(controlsDiv);
+        workerAssignmentsList.appendChild(li);
+    });
 }
 
 function populateResearchPanel() {
@@ -513,6 +669,7 @@ function init() {
     canvas.width = mainRect.width;
     canvas.height = mainRect.height;
     
+    setupEventListeners();
     refreshUI();
     requestAnimationFrame(gameLoop);
 }
