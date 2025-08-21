@@ -35,22 +35,16 @@
             <button class="tab-button active" onclick="openTab('build-menu')">Build</button>
             <button class="tab-button" onclick="openTab('research-panel')">Research</button>
         </div>
+
         <div id="build-menu" class="tab-content active"></div>
         <div id="research-panel" class="tab-content"></div>
-        <div id="inspector-panel" class="hidden">
-            <h2 id="inspector-name"></h2>
-            <div id="inspector-workers">
-                <p>Workers: <span id="workers-assigned">0</span>/<span id="workers-required">0</span></p>
-                <div class="worker-buttons">
-                    <button id="remove-worker-button">-</button>
-                    <button id="add-worker-button">+</button>
-                </div>
-            </div>
-            <button id="close-inspector-button">Close</button>
-        </div>
+
         <div id="message-box"></div>
     </aside>
+
     <button id="open-worker-panel-button">Manage Workers</button>
+    <button id="open-settings-button">Settings</button>
+
     <div id="worker-panel-modal" class="hidden">
         <div class="modal-content">
             <h2>Worker Management</h2>
@@ -58,14 +52,26 @@
             <button id="close-worker-panel-button">Close</button>
         </div>
     </div>
+
     <div id="stats-panel-modal" class="hidden">
         <div class="modal-content">
             <h2 id="stats-name"></h2>
-                <img id="stats-image" src="" alt="Building image">
-                <ul id="stats-list"></ul>
-                <button id="close-stats-panel-button">Close</button>
+            <img id="stats-image" src="" alt="Building Image">
+            <ul id="stats-list"></ul>
+            <button id="close-stats-panel-button">Close</button>
         </div>
     </div>
+
+    <div id="settings-panel-modal" class="hidden">
+        <div class="modal-content">
+            <h2>Settings</h2>
+            <div class="settings-buttons-container">
+                <button id="settings-new-game-button">New Game</button>
+            </div>
+            <button id="close-settings-panel-button">Close</button>
+        </div>
+    </div>
+
 <script src ="script.js" defer></script>
 </body>
 </html>

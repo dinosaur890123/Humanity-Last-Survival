@@ -18,24 +18,19 @@ const scenarioTitleElement = document.getElementById('scenario-title');
 const objectivesListElement = document.getElementById('objectives-list');
 const scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
 
-const inspectorPanel = document.getElementById('inspector-panel');
-const inspectorName = document.getElementById('inspector-name');
-const workersAssignedSpan = document.getElementById('workers-assigned');
-const workersRequiredSpan = document.getElementById('workers-required');
-const addWorkerButton = document.getElementById('add-worker-button');
-const removeWorkerButton = document.getElementById('remove-worker-button');
-const closeInspectorButton = document.getElementById('close-inspector-button');
-
 const openWorkerPanelButton = document.getElementById('open-worker-panel-button');
 const workerPanelModal = document.getElementById('worker-panel-modal');
 const closeWorkerPanelButton = document.getElementById('close-worker-panel-button');
 const workerAssignmentsList = document.getElementById('worker-assignments-list');
-
 const statsPanelModal = document.getElementById('stats-panel-modal');
 const statsName = document.getElementById('stats-name');
 const statsImage = document.getElementById('stats-image');
 const statsList = document.getElementById('stats-list');
 const closeStatsPanelButton = document.getElementById('close-stats-panel-button');
+const openSettingsButton = document.getElementById('open-settings-button');
+const settingsPanelModal = document.getElementById('settings-panel-modal');
+const closeSettingsPanelButton = document.getElementById('close-settings-panel-button');
+const newGameButton = document.getElementById('settings-new-game-button');
 
 const gameState = {
     resources: { wood: 50, stone: 50, food: 100, sand: 0, glass: 0, tools: 20, knowledge: 0 },
@@ -307,11 +302,7 @@ canvas.addEventListener('click', () => {
     }
     
     const clickedBuilding = getBuildingAt(mousePos.x, mousePos.y);
-    if (clickedBuilding) {
-        showInspector(clickedBuilding);
-    } else {
-        hideInspector();
-    }
+    gameState.selectedBuilding = clickedBuilding;
 });
 
 function placeBuilding() {
@@ -358,61 +349,7 @@ function getBuildingAt(x, y) {
     return null;
 }
 
-function showInspector(building) {
-    const blueprint = buildingBlueprints[building.type];
-    if (!blueprint.workersRequired && !blueprint.providesHappiness) {
-        hideInspector();
-        return;
-    }
-
-    gameState.selectedBuilding = building;
-    inspectorPanel.classList.remove('hidden');
-    inspectorName.textContent = blueprint.name;
-    
-    if (blueprint.workersRequired) {
-        document.getElementById('inspector-workers').style.display = 'flex';
-        updateInspectorUI();
-    } else {
-        document.getElementById('inspector-workers').style.display = 'none';
-    }
-}
-
-function updateInspectorUI() {
-    if (!gameState.selectedBuilding) return;
-    const building = gameState.selectedBuilding;
-    const blueprint = buildingBlueprints[building.type];
-    workersAssignedSpan.textContent = building.workersAssigned;
-    workersRequiredSpan.textContent = blueprint.workersRequired;
-}
-function hideInspector() {
-    gameState.selectedBuilding = null;
-    inspectorPanel.classList.add('hidden');
-}
-
 function setupEventListeners() {
-    addWorkerButton.addEventListener('click', () => {
-        const building = gameState.selectedBuilding;
-        if (!building) return;
-
-        const blueprint = buildingBlueprints[building.type];
-        if (gameState.unemployedWorkers > 0 && building.workersAssigned < blueprint.workersRequired) {
-            building.workersAssigned++;
-            gameState.unemployedWorkers--;
-            updateInspectorUI();
-        }
-    });
-
-    removeWorkerButton.addEventListener('click', () => {
-        const building = gameState.selectedBuilding;
-        if (!building || building.workersAssigned === 0) return;
-
-        building.workersAssigned--;
-        gameState.unemployedWorkers++;
-        updateInspectorUI();
-    });
-
-    closeInspectorButton.addEventListener('click', hideInspector);
-
     scenarioTitleElement.addEventListener('click', () => {
         objectivesListElement.classList.toggle('collapsed');
         if (objectivesListElement.classList.contains('collapsed')) {
@@ -443,6 +380,12 @@ function setupEventListeners() {
     closeStatsPanelButton.addEventListener('click', () => {
         statsPanelModal.classList.add('hidden');
     });
+    newGameButton.addEventListener('click', () => {
+        if (confirm("Are you sure you want to start a new game? Your current progress will be lost.")) {
+            localStorage.removeItem('humanitySurvivalSave');
+            window.location.reload();
+        }
+    })
 }
 
 let messageTimeout;
@@ -508,9 +451,6 @@ function populateBuildMenu() {
         buildMenuElement.appendChild(header);
 
         for (const building of categories[categoryName]) {
-            const container = document.createElement('div');
-            container.className = 'build-button-container';
-
             const button = document.createElement('button');
             
             let costString = Object.entries(building.cost)
@@ -531,20 +471,14 @@ function populateBuildMenu() {
             button.addEventListener('click', () => {
                 gameState.buildMode = building.type;
                 canvas.classList.add('build-cursor');
-                hideInspector();
             });
 
-            const viewButton = document.createElement('span');
-            viewButton.className = 'view-stats-button';
-            viewButton.textContent = 'View';
-            viewButton.onclick = (e) => {
-                e.stopPropagation();
+            button.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
                 showStatsPanel(building.type);
-            };
-
-            container.appendChild(button);
-            container.appendChild(viewButton);
-            buildMenuElement.appendChild(container);
+            });
+            
+            buildMenuElement.appendChild(button);
         }
     }
 }
@@ -564,8 +498,8 @@ function showStatsPanel(type) {
     if (blueprint.providesCap) createStat('Capacity', blueprint.providesCap);
     if (blueprint.providesHappiness) createStat('Happiness', `+${blueprint.providesHappiness}`);
     if (blueprint.workersRequired) createStat('Workers', blueprint.workersRequired);
-    if (blueprint.produces) createStat('Produces', Object.entries(blueprint.produces).map(([k,v]) => `${v*60}/min ${k}`).join(', '));
-    if (blueprint.consumes) createStat('Consumes', Object.entries(blueprint.consumes).map(([k,v]) => `${v*60}/min ${k}`).join(', '));
+    if (blueprint.produces) createStat('Produces', Object.entries(blueprint.produces).map(([k,v]) => `${(v*60).toFixed(2)}/min ${k}`).join(', '));
+    if (blueprint.consumes) createStat('Consumes', Object.entries(blueprint.consumes).map(([k,v]) => `${(v*60).toFixed(2)}/min ${k}`).join(', '));
     
     statsPanelModal.classList.remove('hidden');
 }
@@ -630,9 +564,8 @@ function populateResearchPanel() {
     for (const techId in researchTree) {
         const tech = researchTree[techId];
         const button = document.createElement('button');
-        
+
         const isUnlocked = gameState.unlockedTechs.includes(techId);
-        
         button.innerHTML = `${tech.name}<br><small>Cost: ${tech.cost} Knowledge</small>`;
         button.disabled = isUnlocked || gameState.resources.knowledge < tech.cost;
         
