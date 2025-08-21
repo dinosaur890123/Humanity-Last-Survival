@@ -18,17 +18,15 @@ const scenarioTitleElement = document.getElementById('scenario-title');
 const objectivesListElement = document.getElementById('objectives-list');
 const scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
 
+const openWorkerPanelButton = document.getElementById('open-worker-panel-button');
 const workerPanelModal = document.getElementById('worker-panel-modal');
 const closeWorkerPanelButton = document.getElementById('close-worker-panel-button');
 const workerAssignmentsList = document.getElementById('worker-assignments-list');
-
 const statsPanelModal = document.getElementById('stats-panel-modal');
 const statsName = document.getElementById('stats-name');
 const statsImage = document.getElementById('stats-image');
 const statsList = document.getElementById('stats-list');
 const closeStatsPanelButton = document.getElementById('close-stats-panel-button');
-
-const openWorkerPanelButton = document.getElementById('settings-manage-workers-button');
 const newGameButton = document.getElementById('settings-new-game-button');
 
 let gameState = {
