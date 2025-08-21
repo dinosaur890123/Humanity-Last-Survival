@@ -18,21 +18,20 @@ const scenarioTitleElement = document.getElementById('scenario-title');
 const objectivesListElement = document.getElementById('objectives-list');
 const scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
 
-const openWorkerPanelButton = document.getElementById('open-worker-panel-button');
 const workerPanelModal = document.getElementById('worker-panel-modal');
 const closeWorkerPanelButton = document.getElementById('close-worker-panel-button');
 const workerAssignmentsList = document.getElementById('worker-assignments-list');
+
 const statsPanelModal = document.getElementById('stats-panel-modal');
 const statsName = document.getElementById('stats-name');
 const statsImage = document.getElementById('stats-image');
 const statsList = document.getElementById('stats-list');
 const closeStatsPanelButton = document.getElementById('close-stats-panel-button');
-const openSettingsButton = document.getElementById('open-settings-button');
-const settingsPanelModal = document.getElementById('settings-panel-modal');
-const closeSettingsPanelButton = document.getElementById('close-settings-panel-button');
+
+const openWorkerPanelButton = document.getElementById('settings-manage-workers-button');
 const newGameButton = document.getElementById('settings-new-game-button');
 
-const gameState = {
+let gameState = {
     resources: { wood: 50, stone: 50, food: 100, sand: 0, glass: 0, tools: 20, knowledge: 0 },
     buildings: [],
     population: 0,
@@ -90,15 +89,37 @@ const scenarios = [
     }
 ];
 
-for (const type in buildingBlueprints) {
-    const blueprint = buildingBlueprints[type];
-    if (blueprint.imgSrc) {
-        blueprint.img = new Image();
-        blueprint.img.src = blueprint.imgSrc;
-        blueprint.img.onerror = () => {
-            console.error(`Error loading image for ${type}: ${blueprint.imgSrc}`);
-            blueprint.img.failed = true;
-        };
+function loadImages() {
+    for (const type in buildingBlueprints) {
+        const blueprint = buildingBlueprints[type];
+        if (blueprint.imgSrc) {
+            blueprint.img = new Image();
+            blueprint.img.src = blueprint.imgSrc;
+            blueprint.img.onerror = () => {
+                console.error(`Error loading image for ${type}: ${blueprint.imgSrc}`);
+                blueprint.img.failed = true;
+            };
+        }
+    }
+}
+
+function saveGame() {
+    localStorage.setItem('humanitySurvivalSave', JSON.stringify(gameState));
+}
+
+function loadGame() {
+    const savedGame = localStorage.getItem('humanitySurvivalSave');
+    if (savedGame) {
+        gameState = JSON.parse(savedGame);
+        scenarios.forEach((scenario, sIndex) => {
+            scenario.objectives.forEach((obj, oIndex) => {
+                if (sIndex < gameState.currentScenarioIndex || (sIndex === gameState.currentScenarioIndex && oIndex < gameState.currentObjectiveIndex)) {
+                    obj.completed = true;
+                } else {
+                    obj.completed = false;
+                }
+            });
+        });
     }
 }
 
@@ -301,8 +322,7 @@ canvas.addEventListener('click', () => {
         return;
     }
     
-    const clickedBuilding = getBuildingAt(mousePos.x, mousePos.y);
-    gameState.selectedBuilding = clickedBuilding;
+    gameState.selectedBuilding = getBuildingAt(mousePos.x, mousePos.y);
 });
 
 function placeBuilding() {
@@ -380,12 +400,13 @@ function setupEventListeners() {
     closeStatsPanelButton.addEventListener('click', () => {
         statsPanelModal.classList.add('hidden');
     });
+
     newGameButton.addEventListener('click', () => {
         if (confirm("Are you sure you want to start a new game? Your current progress will be lost.")) {
             localStorage.removeItem('humanitySurvivalSave');
             window.location.reload();
         }
-    })
+    });
 }
 
 let messageTimeout;
@@ -564,8 +585,9 @@ function populateResearchPanel() {
     for (const techId in researchTree) {
         const tech = researchTree[techId];
         const button = document.createElement('button');
-
+        
         const isUnlocked = gameState.unlockedTechs.includes(techId);
+        
         button.innerHTML = `${tech.name}<br><small>Cost: ${tech.cost} Knowledge</small>`;
         button.disabled = isUnlocked || gameState.resources.knowledge < tech.cost;
         
@@ -602,8 +624,12 @@ function init() {
     canvas.width = mainRect.width;
     canvas.height = mainRect.height;
     
+    loadGame();
+    loadImages();
     setupEventListeners();
     refreshUI();
+    
+    setInterval(saveGame, 10000);
     requestAnimationFrame(gameLoop);
 }
         
@@ -612,4 +638,5 @@ window.addEventListener('resize', () => {
     canvas.width = mainRect.width;
     canvas.height = mainRect.height;
 });
+
 init();

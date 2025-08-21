@@ -30,20 +30,23 @@
             <ul id="objectives-list"></ul>
         </div>
     </div>
+
     <aside>
         <div class="tabs">
             <button class="tab-button active" onclick="openTab('build-menu')">Build</button>
             <button class="tab-button" onclick="openTab('research-panel')">Research</button>
+            <button class="tab-button" onclick="openTab('settings-panel')">Settings</button>
         </div>
 
         <div id="build-menu" class="tab-content active"></div>
         <div id="research-panel" class="tab-content"></div>
+        <div id="settings-panel" class="tab-content">
+            <button id="settings-manage-workers-button">Manage Workers</button>
+            <button id="settings-new-game-button">New Game</button>
+        </div>
 
         <div id="message-box"></div>
     </aside>
-
-    <button id="open-worker-panel-button">Manage Workers</button>
-    <button id="open-settings-button">Settings</button>
 
     <div id="worker-panel-modal" class="hidden">
         <div class="modal-content">
@@ -59,16 +62,6 @@
             <img id="stats-image" src="" alt="Building Image">
             <ul id="stats-list"></ul>
             <button id="close-stats-panel-button">Close</button>
-        </div>
-    </div>
-
-    <div id="settings-panel-modal" class="hidden">
-        <div class="modal-content">
-            <h2>Settings</h2>
-            <div class="settings-buttons-container">
-                <button id="settings-new-game-button">New Game</button>
-            </div>
-            <button id="close-settings-panel-button">Close</button>
         </div>
     </div>
 
