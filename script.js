@@ -22,12 +22,22 @@ const openWorkerPanelButton = document.getElementById('open-worker-panel-button'
 const workerPanelModal = document.getElementById('worker-panel-modal');
 const closeWorkerPanelButton = document.getElementById('close-worker-panel-button');
 const workerAssignmentsList = document.getElementById('worker-assignments-list');
+
 const statsPanelModal = document.getElementById('stats-panel-modal');
 const statsName = document.getElementById('stats-name');
 const statsImage = document.getElementById('stats-image');
 const statsList = document.getElementById('stats-list');
 const closeStatsPanelButton = document.getElementById('close-stats-panel-button');
+
+const openSettingsButton = document.getElementById('open-settings-button');
+const settingsPanelModal = document.getElementById('settings-panel-modal');
+const closeSettingsPanelButton = document.getElementById('close-settings-panel-button');
 const newGameButton = document.getElementById('settings-new-game-button');
+
+const eventBar = document.getElementById('event-notification-bar');
+const eventTitle = document.getElementById('event-title');
+const eventDescription = document.getElementById('event-description');
+const eventProgressBar = document.getElementById('event-progress-bar');
 
 let gameState = {
     resources: { wood: 50, stone: 50, food: 100, sand: 0, glass: 0, tools: 20, knowledge: 0 },
@@ -42,6 +52,8 @@ let gameState = {
     currentScenarioIndex: 0,
     currentObjectiveIndex: 0,
     scenarioComplete: false,
+    activeEvent: null,
+    nextEventTime: 0,
 };
 
 const buildingBlueprints = {
@@ -85,6 +97,17 @@ const scenarios = [
             { text: "Build a Skyscraper", condition: () => gameState.buildings.some(b => b.type === 'skyscraper'), completed: false },
         ]
     }
+];
+
+const randomEvents = [
+    { id: 'harvest', title: 'Bountiful Harvest!', description: 'Farm production +50%', duration: 60000, modifier: { building: 'farm', type: 'produces', resource: 'food', multiplier: 1.5 } },
+    { id: 'immigration', title: 'Immigration Boom!', description: '+5 population', duration: 1000, effect: () => { 
+        const newPop = Math.min(5, gameState.populationCap - gameState.population);
+        gameState.population += newPop;
+        gameState.unemployedWorkers += newPop;
+     }},
+    { id: 'tool_shortage', title: 'Tool Shortage!', description: 'Tool consumption x2', duration: 45000, modifier: { type: 'consumes', resource: 'tools', multiplier: 2 } },
+    { id: 'builders', title: 'Efficient Builders', description: 'Construction costs -20%', duration: 90000, modifier: { type: 'cost', multiplier: 0.8 } },
 ];
 
 function loadImages() {
@@ -147,6 +170,32 @@ function updateScenario() {
     }
 }
 
+function updateEvents(timestamp) {
+    if (!gameState.nextEventTime) {
+        gameState.nextEventTime = timestamp + 60000 + Math.random() * 60000;
+    }
+
+    if (timestamp >= gameState.nextEventTime && !gameState.activeEvent) {
+        const event = randomEvents[Math.floor(Math.random() * randomEvents.length)];
+        gameState.activeEvent = { ...event, startTime: timestamp };
+        eventBar.classList.remove('hidden');
+        eventTitle.textContent = event.title;
+        eventDescription.textContent = event.description;
+        if (event.effect) event.effect();
+        gameState.nextEventTime = 0;
+    }
+
+    if (gameState.activeEvent) {
+        const elapsed = timestamp - gameState.activeEvent.startTime;
+        const progress = 1 - (elapsed / gameState.activeEvent.duration);
+        eventProgressBar.style.width = `${progress * 100}%`;
+        if (elapsed >= gameState.activeEvent.duration) {
+            gameState.activeEvent = null;
+            eventBar.classList.add('hidden');
+        }
+    }
+}
+
 function update() {
     updateScenario();
 
@@ -193,13 +242,21 @@ function update() {
             if (canProduce) {
                 if (blueprint.consumes) {
                     for (const resource in blueprint.consumes) {
-                        gameState.resources[resource] -= blueprint.consumes[resource];
+                        let consumptionRate = blueprint.consumes[resource];
+                        if (gameState.activeEvent?.modifier?.type === 'consumes' && gameState.activeEvent.modifier.resource === resource) {
+                            consumptionRate *= gameState.activeEvent.modifier.multiplier;
+                        }
+                        gameState.resources[resource] -= consumptionRate;
                     }
                 }
                 if (blueprint.produces) {
                     for (const resource in blueprint.produces) {
-                        const productionRate = blueprint.produces[resource] * building.workersAssigned * happinessModifier * productionModifier;
-                        gameState.resources[resource] += productionRate;
+                        let productionRate = blueprint.produces[resource];
+                        if (gameState.activeEvent?.modifier?.building === building.type && gameState.activeEvent.modifier.resource === resource) {
+                            productionRate *= gameState.activeEvent.modifier.multiplier;
+                        }
+                        const finalProduction = productionRate * building.workersAssigned * happinessModifier * productionModifier;
+                        gameState.resources[resource] += finalProduction;
                     }
                 }
             }
@@ -301,7 +358,8 @@ function draw() {
     if (happinessElement) happinessElement.textContent = Math.floor(gameState.happiness);
 }
 
-function gameLoop() {
+function gameLoop(timestamp) {
+    updateEvents(timestamp);
     update();
     draw();
     requestAnimationFrame(gameLoop);
@@ -325,10 +383,14 @@ canvas.addEventListener('click', () => {
 
 function placeBuilding() {
     const blueprint = buildingBlueprints[gameState.buildMode];
+    let costModifier = 1.0;
+    if (gameState.activeEvent?.modifier?.type === 'cost') {
+        costModifier = gameState.activeEvent.modifier.multiplier;
+    }
 
     let canAfford = true;
     for (const resource in blueprint.cost) {
-        if (gameState.resources[resource] < blueprint.cost[resource]) {
+        if (gameState.resources[resource] < blueprint.cost[resource] * costModifier) {
             canAfford = false;
             showMessage(`Not enough ${resource}!`, 2000);
             break;
@@ -337,7 +399,7 @@ function placeBuilding() {
 
     if (canAfford) {
         for (const resource in blueprint.cost) {
-            gameState.resources[resource] -= blueprint.cost[resource];
+            gameState.resources[resource] -= blueprint.cost[resource] * costModifier;
         }
 
         const newBuilding = {
@@ -384,6 +446,14 @@ function setupEventListeners() {
             canvas.classList.remove('build-cursor');
             showMessage('Build cancelled.', 1500);
         }
+    });
+
+    openSettingsButton.addEventListener('click', () => {
+        settingsPanelModal.classList.remove('hidden');
+    });
+
+    closeSettingsPanelButton.addEventListener('click', () => {
+        settingsPanelModal.classList.add('hidden');
     });
 
     openWorkerPanelButton.addEventListener('click', () => {

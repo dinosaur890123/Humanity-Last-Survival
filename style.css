@@ -235,7 +235,7 @@ canvas {
     display: none;
 }
 .modal-content {
-    background-color: #1f2937;
+    background-color: #232c39;
     padding: 2rem;
     border-radius: 0.5rem;
     width: 90%;
@@ -268,7 +268,7 @@ canvas {
 }
 #stats-list li {
     padding: 0.5rem;
-    border-bottom: 1px solid #374151;
+    border-bottom: 1px solid #2d3541;
 }
 #stats-list li:last-child {
     border-bottom: none;
@@ -288,6 +288,44 @@ canvas {
 }
 #settings-new-game-button {
     background-color: #dc2626;
+}
+#event-notification-bar {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(167, 139, 250, 0.9);
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    z-index: 50;
+    width: 90%;
+    max-width: 400px;
+}
+#event-notification-bar.hidden {
+    display: none;
+}
+#event-notification-bar h3 {
+    margin: 0 0 0.25rem 0;
+}
+#event-notification-bar p {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+}
+.progress-bar-container {
+    width: 100%;
+    height: 5px;
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 5px;
+    transition: width 0.1s linear;
+}
+#event-progress-bar {
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    border-radius: 5px;
+    transition: width 0.1s linear;
 }
 
 @media (max-width: 768px) {
