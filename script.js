@@ -195,10 +195,8 @@ function updateEvents(timestamp) {
         }
     }
 }
-
 function update() {
     updateScenario();
-
     let baseHappiness = 50;
     let happinessFactors = 0;
     happinessFactors += (gameState.resources.food > 0) ? 20 : -30;
