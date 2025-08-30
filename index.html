@@ -33,7 +33,7 @@
         </div>
 
         <div id="scenario-panel">
-            <h2 id="scenario-title" role="button" tabindex="0">Getting Started <span id="scenario-toggle-icon">▼</span></h2>
+            <h2 id="scenario-title">The First Skyscraper<span id="scenario-toggle-icon">▼</span></h2>
             <ul id="objectives-list"></ul>
         </div>
     </div>
@@ -48,18 +48,13 @@
         <div id="build-menu" class="tab-content active"></div>
         <div id="research-panel" class="tab-content"></div>
         <div id="settings-panel" class="tab-content">
-            <h3>Settings</h3>
             <button id="settings-new-game-button">New Game</button>
-            <p style="font-size:0.85rem;opacity:0.8;">(Starts over and clears save)</p>
         </div>
 
         <div id="message-box"></div>
     </aside>
 
-    <div id="action-buttons" style="position:fixed;bottom:1rem;left:1rem;display:flex;gap:0.5rem;z-index:40;flex-wrap:wrap;">
-        <button id="open-worker-panel-button">Manage Workers</button>
-        <button id="open-help-button">How To Play</button>
-    </div>
+    <button id="open-worker-panel-button">Manage Workers</button>
 
     <div id="worker-panel-modal" class="hidden">
         <div class="modal-content">
@@ -78,30 +73,6 @@
         </div>
     </div>
 
-    <div id="help-modal" class="hidden" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:200;">
-        <div class="modal-content" style="max-width:520px;background:#1f2937;padding:1.2rem 1.4rem;border-radius:0.6rem;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-            <h2>How To Play</h2>
-            <div class="help-scroll" style="max-height:300px;overflow:auto;text-align:left;font-size:0.9rem;line-height:1.35;">
-                <p><strong>Goal:</strong> Rebuild a thriving vertical colony. Provide housing, assign workers, research tech, and reach advanced structures.</p>
-                <p><strong>Basics:</strong><br>
-                1. Build Housing (Shack/House) to raise Population Cap.<br>
-                2. Population grows automatically if you have free housing, food, and decent happiness.<br>
-                3. Assign workers in production buildings (Manage Workers button). Idle workers reduce happiness slightly.<br>
-                4. Farms produce Food; citizens consume Food every second. Keep buffer to allow births.<br>
-                5. Industry buildings create advanced resources (Glass, Tools, Knowledge) but may consume inputs.</p>
-                <p><strong>Research:</strong> Spend Knowledge to unlock new buildings. Multiple Labs speed research but cost workers.</p>
-                <p><strong>Events:</strong> Random temporary boosts or challenges appear. Watch the bar at top.</p>
-                <p><strong>Efficiency & Scaling:</strong> Each additional building of the same type is slightly less efficient. Diversify your economy and research upgrades to progress.</p>
-                <p><strong>Costs:</strong> Repeatedly building the same structure slightly increases its cost. Plan expansions.</p>
-                <p><strong>Happiness:</strong> Affects production and birth rate. Provide parks and quality housing; avoid many unemployed citizens.</p>
-                <p><strong>Controls:</strong> Left click to place selected building, right click (or context menu) to cancel build mode. Click a placed building to view stats. Use tabs for Build / Research / Settings.</p>
-                <p><strong>Victory:</strong> Complete all scenario objectives. Continue sandboxing afterwards.</p>
-            </div>
-            <button id="close-help-button" style="margin-top:0.75rem;width:100%;background:#374151;border:1px solid #4b5563;color:#fff;padding:0.55rem 0.75rem;border-radius:0.4rem;cursor:pointer;">Close</button>
-        </div>
-    </div>
-
-    
-
-    <script src="script.js" defer></script>
+<script src ="script.js" defer></script>
 </body>
+</html>

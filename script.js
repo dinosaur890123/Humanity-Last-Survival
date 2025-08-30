@@ -1,3 +1,4 @@
+// cough cough, never knew js needed all this... (prob better ways exist)
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const woodCountElement = document.getElementById('wood-count');
@@ -16,34 +17,55 @@ const researchPanelElement = document.getElementById('research-panel');
 const messageBoxElement = document.getElementById('message-box');
 const scenarioTitleElement = document.getElementById('scenario-title');
 const objectivesListElement = document.getElementById('objectives-list');
-let scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
-
+const scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
 const openWorkerPanelButton = document.getElementById('open-worker-panel-button');
 const workerPanelModal = document.getElementById('worker-panel-modal');
 const closeWorkerPanelButton = document.getElementById('close-worker-panel-button');
 const workerAssignmentsList = document.getElementById('worker-assignments-list');
-
 const statsPanelModal = document.getElementById('stats-panel-modal');
 const statsName = document.getElementById('stats-name');
 const statsImage = document.getElementById('stats-image');
 const statsList = document.getElementById('stats-list');
 const closeStatsPanelButton = document.getElementById('close-stats-panel-button');
-
+const openSettingsButton = document.getElementById('open-settings-button');
+const settingsPanelModal = document.getElementById('settings-panel-modal');
+const closeSettingsPanelButton = document.getElementById('close-settings-panel-button');
 const newGameButton = document.getElementById('settings-new-game-button');
-const openHelpButton = document.getElementById('open-help-button');
-const helpModal = document.getElementById('help-modal');
-const closeHelpButton = document.getElementById('close-help-button');
-
-function fadeIn(el){ if(!el) return; el.classList.remove('hidden'); el.style.opacity=0; el.style.transition='opacity .25s ease'; requestAnimationFrame(()=>{ el.style.opacity=1; }); }
-function fadeOut(el){ if(!el) return; el.style.transition='opacity .25s ease'; el.style.opacity=0; const handler=()=>{ el.classList.add('hidden'); el.style.transition=''; el.removeEventListener('transitionend', handler); }; el.addEventListener('transitionend', handler); }
-
 const eventBar = document.getElementById('event-notification-bar');
 const eventTitle = document.getElementById('event-title');
 const eventDescription = document.getElementById('event-description');
 const eventProgressBar = document.getElementById('event-progress-bar');
 
+
+const GAME_CONFIG = {
+    initialResources: {wood: 50, stone: 50, food: 100, sand: 0, glass: 0, tools: 20, knowledge: 0 },
+    rates: {
+        foodConsumption: 0.002,
+        populationGrowthChance: 0.008,
+        initialPopulationGrowthChance: 0.01,
+        happinessChangeSpeed: 0.0005
+    },
+    happiness: {
+        base: 50,
+        foodBonus: 20,
+        foodPenalty: -30,
+        unemployedPenalty: -2,
+        highHappinessThreshold: 70,
+        lowHappinessThreshold: 30,
+        highHappinessModifier: 1.1,
+        lowHappinessModifier: 0.8
+    },
+    production: {
+        noToolsModifier: 0.5
+    },
+    timers: {
+        saveInterval: 10000,
+        eventIntervalMin: 60000,
+        eventIntervalRandom: 60000
+    }
+};
 let gameState = {
-    resources: { wood: 30, stone: 15, food: 60, sand: 0, glass: 0, tools: 5, knowledge: 0 },
+    resources: {...GAME_CONFIG.initialResources},
     buildings: [],
     population: 0,
     unemployedWorkers: 0,
@@ -57,29 +79,28 @@ let gameState = {
     scenarioComplete: false,
     activeEvent: null,
     nextEventTime: 0,
-    saveVersion: 1,
 };
 
 const buildingBlueprints = {
-    'shack': { name: 'Shack', category: 'Housing', cost: {wood: 12}, width: 60, height: 60, color: '#A0522D', providesCap: 2, imgSrc: 'assets/shack.png' },
-    'house': { name: 'House', category: 'Housing', cost: {wood: 28, stone: 14}, width: 60, height: 60, color: '#d2b48c', providesCap: 5, imgSrc: 'assets/house.png' },
-    'apartment': { name: 'Apartment', category: 'Housing', cost: {wood: 70, stone: 40, glass: 25, tools: 8}, width: 60, height: 60, color: '#06b6d4', providesCap: 18, providesHappiness: 3, imgSrc: 'assets/apartment.png', locked: true },
-    'skyscraper': { name: 'Skyscraper', category: 'Housing', cost: {wood: 250, stone: 220, glass: 120, tools: 40}, width: 60, height: 60, color: '#4b5563', providesCap: 55, providesHappiness: 8, imgSrc: 'assets/skyscraper.png', locked: true },
-    'farm': {name: 'Farm', category: 'Food', cost: {wood: 40, stone: 15}, width: 60, height: 60, color: '#b8860b', produces: { food: 0.015 }, workersRequired: 2, imgSrc: 'assets/farm.png'},
-    'woodcutter': {name: 'Woodcutter', category: 'Resources', cost: {wood: 24}, width: 60, height: 60, color: '#8b4513', produces: { wood: 0.018 }, workersRequired: 1, imgSrc: 'assets/woodcutter.png'},
-    'quarry': {name: 'Quarry', category: 'Resources', cost: {wood: 22, stone: 20}, width: 60, height: 60, color: '#a9a9a9', produces: { stone: 0.013 }, workersRequired: 2, imgSrc: 'assets/quarry.png', consumes: { tools: 0.002 }},
-    'sand_pit': {name: 'Sand Pit', category: 'Resources', cost: {wood: 35, stone: 18}, width: 60, height: 60, color: '#eab308', produces: { sand: 0.025 }, workersRequired: 2, imgSrc: 'assets/sand_pit.png'},
-    'sawmill': {name: 'Sawmill', category: 'Industry', cost: {wood: 120, stone: 60, tools: 6}, width: 60, height: 60, color: '#800000', produces: { wood: 0.07 }, workersRequired: 3, imgSrc: 'assets/sawmill.png', locked: true, consumes: { tools: 0.004 }},
-    'glassworks': {name: 'Glassworks', category: 'Industry', cost: {wood: 80, stone: 50, tools: 5}, width: 60, height: 60, color: '#06b6d4', consumes: { sand: 0.03, wood: 0.015, tools: 0.004 }, produces: { glass: 0.006 }, workersRequired: 3, imgSrc: 'assets/glassworks.png', locked: true },
-    'toolsmith': {name: 'Toolsmith', category: 'Industry', cost: {wood: 60, stone: 60}, width: 60, height: 60, color: '#f97316', consumes: { wood: 0.02, stone: 0.02 }, produces: { tools: 0.005 }, workersRequired: 3, imgSrc: 'assets/toolsmith.png'},
-    'research_lab': {name: 'Research Lab', category: 'Industry', cost: {wood: 140, stone: 70}, width: 60, height: 60, color: '#a78bfa', produces: { knowledge: 0.015 }, workersRequired: 4, imgSrc: 'assets/research_lab.png'},
-    'park': { name: 'Park', category: 'Life', cost: {wood: 70, stone: 30}, width: 60, height: 60, color: '#22c55e', providesHappiness: 6, imgSrc: 'assets/park.png' },
-};
+    'shack': { name: 'Shack', category: 'Housing', cost: {wood: 10}, width: 60, height: 60, color: '#A0522D', providesCap: 2, imgSrc: 'assets/shack.png' },
+    'house': { name: 'House', category: 'Housing', cost: {wood: 20, stone: 10}, width: 60, height: 60, color: '#d2b48c', providesCap: 5, imgSrc: 'assets/house.png' },
+    'apartment': { name: 'Apartment', category: 'Housing', cost: {wood: 40, stone: 20, glass: 10}, width: 60, height: 60, color: '#06b6d4', providesCap: 15, providesHappiness: 2, imgSrc: 'assets/apartment.png', locked: true },
+    'skyscraper': { name: 'Skyscraper', category: 'Housing', cost: {wood: 100, stone: 80, glass: 50}, width: 60, height: 60, color: '#4b5563', providesCap: 50, providesHappiness: 5, imgSrc: 'assets/skyscraper.png', locked: true },
+    'farm': {name: 'Farm', category: 'Food', cost: {wood: 30, stone: 10}, width: 60, height: 60, color: '#b8860b', produces: { food: 0.03 }, workersRequired: 2, imgSrc: 'assets/farm.png'},
+    'woodcutter': {name: 'Woodcutter', category: 'Resources', cost: {wood: 20}, width: 60, height: 60, color: '#8b4513', produces: { wood: 0.02 }, workersRequired: 1, imgSrc: 'assets/woodcutter.png'},
+    'quarry': {name: 'Quarry', category: 'Resources', cost: {wood: 15, stone: 15}, width: 60, height: 60, color: '#a9a9a9', produces: { stone: 0.015 }, workersRequired: 2, imgSrc: 'assets/quarry.png', consumes: { tools: 0.001 }},
+    'sand_pit': {name: 'Sand Pit', category: 'Resources', cost: {wood: 25, stone: 10}, width: 60, height: 60, color: '#eab308', produces: { sand: 0.02 }, workersRequired: 2, imgSrc: 'assets/sand_pit.png'},
+    'sawmill': {name: 'Sawmill', category: 'Industry', cost: {wood: 80, stone: 40}, width: 60, height: 60, color: '#800000', produces: { wood: 0.08 }, workersRequired: 3, imgSrc: 'assets/sawmill.png', locked: true, consumes: { tools: 0.002 }},
+    'glassworks': {name: 'Glassworks', category: 'Industry', cost: {wood: 50, stone: 30}, width: 60, height: 60, color: '#06b6d4', consumes: { sand: 0.02, wood: 0.01, tools: 0.002 }, produces: { glass: 0.01 }, workersRequired: 3, imgSrc: 'assets/glassworks.png', locked: true },
+    'toolsmith': {name: 'Toolsmith', category: 'Industry', cost: {wood: 40, stone: 40}, width: 60, height: 60, color: '#f97316', consumes: { wood: 0.01, stone: 0.01 }, produces: { tools: 0.01 }, workersRequired: 2, imgSrc: 'assets/toolsmith.png'},
+    'research_lab': {name: 'Research Lab', category: 'Industry', cost: {wood: 100, stone: 50}, width: 60, height: 60, color: '#a78bfa', produces: { knowledge: 0.02 }, workersRequired: 4, imgSrc: 'assets/research_lab.png'},
+    'park': { name: 'Park', category: 'Life', cost: {wood: 50, stone: 20}, width: 60, height: 60, color: '#22c55e', providesHappiness: 5, imgSrc: 'assets/park.png' },
+}
 
 const researchTree = {
-    'advanced_woodcutting': { name: 'Advanced Woodcutting', cost: 150, unlocks: ['sawmill'] },
-    'glass_blowing': { name: 'Glass Blowing', cost: 400, unlocks: ['glassworks', 'apartment'] },
-    'urban_planning': { name: 'Urban Planning', cost: 1000, unlocks: ['skyscraper'] },
+    'advanced_woodcutting': { name: 'Advanced Woodcutting', cost: 50, unlocks: ['sawmill'] },
+    'glass_blowing': { name: 'Glass Blowing', cost: 100, unlocks: ['glassworks', 'apartment'] },
+    'urban_planning': { name: 'Urban Planning', cost: 250, unlocks: ['skyscraper'] },
 };
 
 const scenarios = [
@@ -104,14 +125,14 @@ const scenarios = [
 ];
 
 const randomEvents = [
-    { id: 'harvest', title: 'Bountiful Harvest!', description: 'Farm production +60%', duration: 60000, modifier: { building: 'farm', type: 'produces', resource: 'food', multiplier: 1.6 } },
-    { id: 'immigration', title: 'Immigration Boom!', description: '+4 population', duration: 1000, effect: () => { 
-        const add = Math.min(4, gameState.populationCap - gameState.population);
-        gameState.population += add;
-        gameState.unemployedWorkers += add;
+    { id: 'harvest', title: 'Bountiful Harvest!', description: 'Farm production +50%', duration: 60000, modifier: { building: 'farm', type: 'produces', resource: 'food', multiplier: 1.5 } },
+    { id: 'immigration', title: 'Immigration Boom!', description: '+5 population', duration: 1000, effect: () => { 
+        const newPop = Math.min(5, gameState.populationCap - gameState.population);
+        gameState.population += newPop;
+        gameState.unemployedWorkers += newPop;
      }},
-    { id: 'tool_shortage', title: 'Tool Shortage!', description: 'Tool consumption x2.5', duration: 45000, modifier: { type: 'consumes', resource: 'tools', multiplier: 2.5 } },
-    { id: 'builders', title: 'Efficient Builders', description: 'Construction costs -15%', duration: 90000, modifier: { type: 'cost', multiplier: 0.85 } },
+    { id: 'tool_shortage', title: 'Tool Shortage!', description: 'Tool consumption x2', duration: 45000, modifier: { type: 'consumes', resource: 'tools', multiplier: 2 } },
+    { id: 'builders', title: 'Efficient Builders', description: 'Construction costs -20%', duration: 90000, modifier: { type: 'cost', multiplier: 0.8 } },
 ];
 
 function loadImages() {
@@ -129,21 +150,22 @@ function loadImages() {
 }
 
 function saveGame() {
-    const { activeEvent, nextEventTime, ...rest } = gameState;
-    localStorage.setItem('humanitySurvivalSave', JSON.stringify(rest));
+    localStorage.setItem('humanitySurvivalSave', JSON.stringify(gameState));
 }
 
 function loadGame() {
     const savedGame = localStorage.getItem('humanitySurvivalSave');
     if (savedGame) {
-        const parsed = JSON.parse(savedGame);
-        gameState = { ...gameState, ...parsed };
+        gameState = JSON.parse(savedGame);
         scenarios.forEach((scenario, sIndex) => {
             scenario.objectives.forEach((obj, oIndex) => {
-                obj.completed = (sIndex < gameState.currentScenarioIndex || (sIndex === gameState.currentScenarioIndex && oIndex < gameState.currentObjectiveIndex));
+                if (sIndex < gameState.currentScenarioIndex || (sIndex === gameState.currentScenarioIndex && oIndex < gameState.currentObjectiveIndex)) {
+                    obj.completed = true;
+                } else {
+                    obj.completed = false;
+                }
             });
         });
-    if (!('saveVersion' in gameState)) gameState.saveVersion = 1;
     }
 }
 
@@ -175,73 +197,78 @@ function updateScenario() {
 
 function updateEvents(timestamp) {
     if (!gameState.nextEventTime) {
-        gameState.nextEventTime = timestamp + 180000 + Math.random() * 120000;
+        gameState.nextEventTime = timestamp + GAME_CONFIG.timers.eventIntervalMin + Math.random() * GAME_CONFIG.timers.eventIntervalRandom;
     }
 
     if (timestamp >= gameState.nextEventTime && !gameState.activeEvent) {
-        if (Math.random() < 0.6) {
-            const event = randomEvents[Math.floor(Math.random() * randomEvents.length)];
-            gameState.activeEvent = { ...event, startTime: timestamp };
-            fadeIn(eventBar);
-            eventTitle.textContent = event.title;
-            eventDescription.textContent = event.description;
-            if (event.effect) event.effect();
-        }
+        const event = randomEvents[Math.floor(Math.random() * randomEvents.length)];
+        gameState.activeEvent = { ...event, startTime: timestamp };
+        eventBar.classList.remove('hidden');
+        eventTitle.textContent = event.title;
+        eventDescription.textContent = event.description;
+        if (event.effect) event.effect();
         gameState.nextEventTime = 0;
     }
 
     if (gameState.activeEvent) {
         const elapsed = timestamp - gameState.activeEvent.startTime;
-        const progress = Math.max(0, Math.min(1, elapsed / gameState.activeEvent.duration));
-        eventProgressBar.style.width = `${(1 - progress) * 100}%`;
+        const progress = 1 - (elapsed / gameState.activeEvent.duration);
+        eventProgressBar.style.width = `${progress * 100}%`;
+
         if (elapsed >= gameState.activeEvent.duration) {
             gameState.activeEvent = null;
-            fadeOut(eventBar);
+            eventBar.classList.add('hidden');
         }
     }
 }
-function update(deltaMs) {
+
+function update() {
     updateScenario();
-    const deltaSec = deltaMs / 1000;
-    let baseHappiness = 45;
+
+    let baseHappiness = 50;
     let happinessFactors = 0;
     happinessFactors += (gameState.resources.food > 0) ? 20 : -30;
     happinessFactors -= gameState.unemployedWorkers * 2;
     for(const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
-        if (blueprint.providesHappiness) happinessFactors += blueprint.providesHappiness;
+        if (blueprint.providesHappiness) {
+            happinessFactors += blueprint.providesHappiness;
+        }
     }
-    let targetHappiness = Math.max(0, Math.min(100, baseHappiness + happinessFactors));
-    const happinessEaseRate = 0.25;
-    gameState.happiness += (targetHappiness - gameState.happiness) * happinessEaseRate * (deltaSec / 10);
+    let targetHappiness = baseHappiness + happinessFactors;
+    if (targetHappiness > 100) targetHappiness = 100;
+    if (targetHappiness < 0) targetHappiness = 0;
+    gameState.happiness += (targetHappiness - gameState.happiness) * 0.0005;
+
     let happinessModifier = 1;
-    if (gameState.happiness > 80) happinessModifier = 1.2;
-    else if (gameState.happiness > 65) happinessModifier = 1.05;
-    else if (gameState.happiness < 35) happinessModifier = 0.75;
-    else if (gameState.happiness < 20) happinessModifier = 0.5;
+    if (gameState.happiness > 70) happinessModifier = 1.1;
+    if (gameState.happiness < 30) happinessModifier = 0.8;
+
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
         building.needsTools = false;
         if (building.workersAssigned > 0) {
             let productionModifier = 1.0;
             let canProduce = true;
+
             if (blueprint.consumes) {
-                if (blueprint.consumes.tools && gameState.resources.tools < blueprint.consumes.tools * deltaSec) {
+                if (blueprint.consumes.tools && gameState.resources.tools < blueprint.consumes.tools) {
                     productionModifier = 0.5;
                     building.needsTools = true;
                 }
+
                 for (const resource in blueprint.consumes) {
-                    if (resource === 'tools') continue;
-                    if (gameState.resources[resource] < blueprint.consumes[resource] * deltaSec) {
+                    if (resource !== 'tools' && gameState.resources[resource] < blueprint.consumes[resource]) {
                         canProduce = false;
                         break;
                     }
                 }
             }
+            
             if (canProduce) {
                 if (blueprint.consumes) {
                     for (const resource in blueprint.consumes) {
-                        let consumptionRate = blueprint.consumes[resource] * deltaSec;
+                        let consumptionRate = blueprint.consumes[resource];
                         if (gameState.activeEvent?.modifier?.type === 'consumes' && gameState.activeEvent.modifier.resource === resource) {
                             consumptionRate *= gameState.activeEvent.modifier.multiplier;
                         }
@@ -250,44 +277,40 @@ function update(deltaMs) {
                 }
                 if (blueprint.produces) {
                     for (const resource in blueprint.produces) {
-                        let productionRate = blueprint.produces[resource] * deltaSec;
+                        let productionRate = blueprint.produces[resource];
                         if (gameState.activeEvent?.modifier?.building === building.type && gameState.activeEvent.modifier.resource === resource) {
                             productionRate *= gameState.activeEvent.modifier.multiplier;
                         }
-                        const staffedFrac = blueprint.workersRequired ? (building.workersAssigned / blueprint.workersRequired) : 1;
-                        const efficiency = getBuildingEfficiency(building.type);
-                        const finalProduction = productionRate * staffedFrac * happinessModifier * productionModifier * efficiency;
+                        const finalProduction = productionRate * building.workersAssigned * happinessModifier * productionModifier;
                         gameState.resources[resource] += finalProduction;
                     }
                 }
             }
         }
     }
+
     if (gameState.population > 0) {
-        const foodConsumed = gameState.population * 0.002 * deltaSec;
+        const foodConsumed = gameState.population * 0.002;
         gameState.resources.food -= foodConsumed;
-        if (gameState.resources.food < 0) gameState.resources.food = 0;
-    }
-    gameState.populationCap = gameState.buildings.reduce((sum, b) => sum + (buildingBlueprints[b.type].providesCap || 0), 0);
-    if (gameState.population < gameState.populationCap) {
-        const foodBufferRatio = Math.min(1, gameState.resources.food / (gameState.population * 4 + 1));
-        const happinessFactor = gameState.happiness / 100;
-        const baseBirthsPerMinute = 1.2;
-        const birthsPerMinute = baseBirthsPerMinute * foodBufferRatio * (0.5 + happinessFactor);
-        const probabilityThisFrame = (birthsPerMinute / 60) * deltaSec;
-        if (gameState.resources.food > 5 && Math.random() < probabilityThisFrame) {
-            gameState.population++;
-            gameState.unemployedWorkers++;
+
+        if (gameState.resources.food < 0) {
+            gameState.resources.food = 0;
         }
     }
-    clampResources();
-}
 
-function clampResources() {
-    for (const key in gameState.resources) {
-        let v = gameState.resources[key];
-        if (!Number.isFinite(v) || v < 0) {
-            gameState.resources[key] = Math.max(0, Number.isFinite(v) ? v : 0);
+    let newPopCap = 0;
+    for (const building of gameState.buildings) {
+        if (buildingBlueprints[building.type].providesCap) {
+            newPopCap += buildingBlueprints[building.type].providesCap;
+        }
+    }
+    gameState.populationCap = newPopCap;
+
+    if (gameState.population < gameState.populationCap) {
+        const growthChance = (gameState.population === 0) ? 0.01 : 0.008;
+        if (Math.random() < growthChance) {
+            gameState.population++;
+            gameState.unemployedWorkers++;
         }
     }
 }
@@ -361,13 +384,9 @@ function draw() {
     if (happinessElement) happinessElement.textContent = Math.floor(gameState.happiness);
 }
 
-let lastTimestamp = performance.now();
 function gameLoop(timestamp) {
-    const deltaMs = timestamp - lastTimestamp;
-    lastTimestamp = timestamp;
     updateEvents(timestamp);
-    const capped = Math.min(deltaMs, 1000);
-    update(capped);
+    update();
     draw();
     requestAnimationFrame(gameLoop);
 }
@@ -388,10 +407,6 @@ canvas.addEventListener('click', () => {
     gameState.selectedBuilding = getBuildingAt(mousePos.x, mousePos.y);
 });
 
-function aabbIntersect(a, b) {
-    return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
-}
-
 function placeBuilding() {
     const blueprint = buildingBlueprints[gameState.buildMode];
     let costModifier = 1.0;
@@ -401,10 +416,7 @@ function placeBuilding() {
 
     let canAfford = true;
     for (const resource in blueprint.cost) {
-        const base = blueprint.cost[resource];
-        const scaledBase = getScaledBuildingCost(gameState.buildMode, resource, base);
-        const adjustedCost = Math.round(scaledBase * costModifier);
-        if (gameState.resources[resource] < adjustedCost) {
+        if (gameState.resources[resource] < blueprint.cost[resource] * costModifier) {
             canAfford = false;
             showMessage(`Not enough ${resource}!`, 2000);
             break;
@@ -412,30 +424,21 @@ function placeBuilding() {
     }
 
     if (canAfford) {
-        const x = mousePos.x - blueprint.width / 2;
-        const y = mousePos.y - blueprint.height;
-    const newBuilding = { type: gameState.buildMode, x, y, width: blueprint.width, height: blueprint.height, color: blueprint.color, workersAssigned: 0 };
-        if (x < 0 || y < 0 || x + blueprint.width > canvas.width || y + blueprint.height > canvas.height) {
-            showMessage('Invalid placement (bounds).', 2000);
-            return;
-        }
-        for (const existing of gameState.buildings) {
-            if (aabbIntersect(existing, newBuilding)) {
-                showMessage('Cannot overlap another building.', 2000);
-                return;
-            }
-        }
         for (const resource in blueprint.cost) {
-            const base = blueprint.cost[resource];
-            const scaledBase = getScaledBuildingCost(gameState.buildMode, resource, base);
-            const adjustedCost = Math.round(scaledBase * costModifier);
-            gameState.resources[resource] -= adjustedCost;
+            gameState.resources[resource] -= blueprint.cost[resource] * costModifier;
         }
+
+        const newBuilding = {
+            type: gameState.buildMode,
+            x: mousePos.x - blueprint.width / 2,
+            y: mousePos.y - blueprint.height,
+            width: blueprint.width,
+            height: blueprint.height,
+            color: blueprint.color,
+            workersAssigned: 0,
+        };
         gameState.buildings.push(newBuilding);
-        gameState.buildMode = null;
-        canvas.classList.remove('build-cursor');
-        refreshUI();
-    } else {
+        
         gameState.buildMode = null;
         canvas.classList.remove('build-cursor');
     }
@@ -455,10 +458,10 @@ function getBuildingAt(x, y) {
 function setupEventListeners() {
     scenarioTitleElement.addEventListener('click', () => {
         objectivesListElement.classList.toggle('collapsed');
-        scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
-        if (scenarioToggleIcon) {
-            if (objectivesListElement.classList.contains('collapsed')) scenarioToggleIcon.style.transform = 'rotate(-90deg)';
-            else scenarioToggleIcon.style.transform = 'rotate(0deg)';
+        if (objectivesListElement.classList.contains('collapsed')) {
+            scenarioToggleIcon.style.transform = 'rotate(-90deg)';
+        } else {
+            scenarioToggleIcon.style.transform = 'rotate(0deg)';
         }
     });
 
@@ -471,31 +474,33 @@ function setupEventListeners() {
         }
     });
 
+    openSettingsButton.addEventListener('click', () => {
+        settingsPanelModal.classList.remove('hidden');
+    });
+
+    closeSettingsPanelButton.addEventListener('click', () => {
+        settingsPanelModal.classList.add('hidden');
+    });
+
     openWorkerPanelButton.addEventListener('click', () => {
-    fadeIn(workerPanelModal);
+        workerPanelModal.classList.remove('hidden');
         populateWorkerPanel();
     });
 
     closeWorkerPanelButton.addEventListener('click', () => {
-    fadeOut(workerPanelModal);
+        workerPanelModal.classList.add('hidden');
     });
 
-    closeStatsPanelButton.addEventListener('click', () => { fadeOut(statsPanelModal); });
+    closeStatsPanelButton.addEventListener('click', () => {
+        statsPanelModal.classList.add('hidden');
+    });
 
-    if (newGameButton) newGameButton.addEventListener('click', () => {
-        if (confirm("Start a new game? Progress will be lost.")) {
+    newGameButton.addEventListener('click', () => {
+        if (confirm("Are you sure you want to start a new game? Your current progress will be lost.")) {
             localStorage.removeItem('humanitySurvivalSave');
             window.location.reload();
         }
     });
-    if (openHelpButton && helpModal && closeHelpButton) {
-        const openHelp = () => helpModal.classList.remove('hidden');
-        const closeHelp = () => helpModal.classList.add('hidden');
-    openHelpButton.addEventListener('click', ()=>{ fadeIn(helpModal); });
-    closeHelpButton.addEventListener('click', ()=>{ fadeOut(helpModal); });
-    helpModal.addEventListener('click', (e) => { if (e.target === helpModal) fadeOut(helpModal); });
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !helpModal.classList.contains('hidden')) fadeOut(helpModal); });
-    }
 }
 
 let messageTimeout;
@@ -519,21 +524,17 @@ function refreshUI() {
 function populateScenarioPanel() {
     const currentScenario = scenarios[gameState.currentScenarioIndex];
     if (!currentScenario) return;
-    if (scenarioTitleElement && scenarioTitleElement.childNodes.length) {
-        const textNode = scenarioTitleElement.childNodes[0];
-        if (textNode.nodeType === Node.TEXT_NODE) {
-            textNode.textContent = currentScenario.title + ' ';
-        } else {
-            scenarioTitleElement.innerHTML = `${currentScenario.title} <span id="scenario-toggle-icon">▼</span>`;
-        }
-    }
-    scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
+
+    scenarioTitleElement.firstChild.textContent = currentScenario.title + ' ';
     objectivesListElement.innerHTML = '';
     currentScenario.objectives.forEach((obj, index) => {
         const li = document.createElement('li');
         li.textContent = obj.text;
-        if (obj.completed) li.className = 'completed';
-        else if (index === gameState.currentObjectiveIndex) li.className = 'active';
+        if (obj.completed) {
+            li.className = 'completed';
+        } else if (index === gameState.currentObjectiveIndex) {
+            li.className = 'active';
+        }
         objectivesListElement.appendChild(li);
     });
 }
@@ -566,30 +567,32 @@ function populateBuildMenu() {
 
         for (const building of categories[categoryName]) {
             const button = document.createElement('button');
-            button.className = 'build-btn';
-            const costs = Object.entries(building.cost).map(([res,val]) => {
-                const scaled = Math.round(getScaledBuildingCost(building.type,res,val));
-                return `${scaled} ${res}`;
-            }).join(', ');
-            const info = [];
-            info.push(`Cost: ${costs}`);
-            if (building.providesCap) info.push(`Cap: ${building.providesCap}`);
-            if (building.providesHappiness) info.push(`Happy:+${building.providesHappiness}`);
-            button.innerHTML = `${building.name}<br><small>${info.join(' | ')}</small>`;
-            let affordable = true;
-            for (const [res,val] of Object.entries(building.cost)) {
-                const scaled = Math.round(getScaledBuildingCost(building.type,res,val));
-                if (gameState.resources[res] < scaled) { affordable = false; break; }
+            
+            let costString = Object.entries(building.cost)
+                .map(([res, val]) => `${val} ${res}`)
+                .join(', ');
+
+            let infoParts = [`Cost: ${costString}`];
+            if (building.providesCap) {
+                infoParts.push(`Capacity: ${building.providesCap}`);
             }
-            if (!affordable) button.disabled = true;
+            if (building.providesHappiness) {
+                infoParts.push(`Happiness: +${building.providesHappiness}`);
+            }
+            let additionalInfo = infoParts.join(' | ');
+
+            button.innerHTML = `${building.name} <br><small>${additionalInfo}</small>`;
+            
             button.addEventListener('click', () => {
-                if (button.disabled) return;
                 gameState.buildMode = building.type;
                 canvas.classList.add('build-cursor');
-                [...buildMenuElement.querySelectorAll('button')].forEach(b=>b.classList.remove('selected'));
-                button.classList.add('selected');
             });
-            button.addEventListener('contextmenu', e=>{ e.preventDefault(); showStatsPanel(building.type); });
+
+            button.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showStatsPanel(building.type);
+            });
+            
             buildMenuElement.appendChild(button);
         }
     }
@@ -613,7 +616,7 @@ function showStatsPanel(type) {
     if (blueprint.produces) createStat('Produces', Object.entries(blueprint.produces).map(([k,v]) => `${(v*60).toFixed(2)}/min ${k}`).join(', '));
     if (blueprint.consumes) createStat('Consumes', Object.entries(blueprint.consumes).map(([k,v]) => `${(v*60).toFixed(2)}/min ${k}`).join(', '));
     
-    fadeIn(statsPanelModal);
+    statsPanelModal.classList.remove('hidden');
 }
 
 function populateWorkerPanel() {
@@ -680,16 +683,19 @@ function populateResearchPanel() {
         const isUnlocked = gameState.unlockedTechs.includes(techId);
         
         button.innerHTML = `${tech.name}<br><small>Cost: ${tech.cost} Knowledge</small>`;
-    const dynamicCost = getScaledResearchCost(techId, tech.cost);
-    button.disabled = isUnlocked || gameState.resources.knowledge < dynamicCost;
+        button.disabled = isUnlocked || gameState.resources.knowledge < tech.cost;
         
-    if (isUnlocked) button.innerHTML += `<br><small>Researched</small>`;
+        if (isUnlocked) {
+            button.innerHTML += `<br><small>Researched</small>`;
+        }
 
         button.addEventListener('click', () => {
-            if (gameState.resources.knowledge >= dynamicCost) {
-                gameState.resources.knowledge -= dynamicCost;
+            if (gameState.resources.knowledge >= tech.cost) {
+                gameState.resources.knowledge -= tech.cost;
                 gameState.unlockedTechs.push(techId);
-                tech.unlocks.forEach(buildingId => { buildingBlueprints[buildingId].locked = false; });
+                tech.unlocks.forEach(buildingId => {
+                    buildingBlueprints[buildingId].locked = false;
+                });
                 refreshUI();
             }
         });
@@ -719,28 +725,6 @@ function init() {
     
     setInterval(saveGame, 10000);
     requestAnimationFrame(gameLoop);
-}
-
-function countBuildingsOfType(type) {
-    return gameState.buildings.filter(b => b.type === type).length;
-}
-
-function getBuildingEfficiency(type) {
-    const n = countBuildingsOfType(type);
-    if (n <= 1) return 1;
-    const eff = Math.pow(0.93, n - 1);
-    return Math.max(0.25, eff);
-}
-
-function getScaledBuildingCost(type, resource, base) {
-    const n = countBuildingsOfType(type);
-    const scaled = base * Math.pow(1.07, n);
-    return scaled;
-}
-
-function getScaledResearchCost(techId, base) {
-    const researched = gameState.unlockedTechs.length;
-    return Math.round(base * Math.pow(1.15, researched));
 }
         
 window.addEventListener('resize', () => {
