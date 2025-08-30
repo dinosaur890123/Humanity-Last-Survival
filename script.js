@@ -1,4 +1,3 @@
-// cough cough, never knew js needed all this... (prob better ways exist)
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const woodCountElement = document.getElementById('wood-count');
@@ -27,15 +26,14 @@ const statsName = document.getElementById('stats-name');
 const statsImage = document.getElementById('stats-image');
 const statsList = document.getElementById('stats-list');
 const closeStatsPanelButton = document.getElementById('close-stats-panel-button');
-const openSettingsButton = document.getElementById('open-settings-button');
-const settingsPanelModal = document.getElementById('settings-panel-modal');
-const closeSettingsPanelButton = document.getElementById('close-settings-panel-button');
 const newGameButton = document.getElementById('settings-new-game-button');
 const eventBar = document.getElementById('event-notification-bar');
 const eventTitle = document.getElementById('event-title');
 const eventDescription = document.getElementById('event-description');
 const eventProgressBar = document.getElementById('event-progress-bar');
+const selectedBuildingInfo = document.getElementById('selected-building-info');
 
+const GRID_SIZE = 30;
 
 const GAME_CONFIG = {
     initialResources: {wood: 50, stone: 50, food: 100, sand: 0, glass: 0, tools: 20, knowledge: 0 },
@@ -67,6 +65,8 @@ const GAME_CONFIG = {
 let gameState = {
     resources: {...GAME_CONFIG.initialResources},
     buildings: [],
+    environment: [],
+    floatingTexts: [],
     population: 0,
     unemployedWorkers: 0,
     populationCap: 0,
@@ -87,7 +87,7 @@ const buildingBlueprints = {
     'apartment': { name: 'Apartment', category: 'Housing', cost: {wood: 40, stone: 20, glass: 10}, width: 60, height: 60, color: '#06b6d4', providesCap: 15, providesHappiness: 2, imgSrc: 'assets/apartment.png', locked: true },
     'skyscraper': { name: 'Skyscraper', category: 'Housing', cost: {wood: 100, stone: 80, glass: 50}, width: 60, height: 60, color: '#4b5563', providesCap: 50, providesHappiness: 5, imgSrc: 'assets/skyscraper.png', locked: true },
     'farm': {name: 'Farm', category: 'Food', cost: {wood: 30, stone: 10}, width: 60, height: 60, color: '#b8860b', produces: { food: 0.03 }, workersRequired: 2, imgSrc: 'assets/farm.png'},
-    'woodcutter': {name: 'Woodcutter', category: 'Resources', cost: {wood: 20}, width: 60, height: 60, color: '#8b4513', produces: { wood: 0.02 }, workersRequired: 1, imgSrc: 'assets/woodcutter.png'},
+    'woodcutter': {name: 'Woodcutter', category: 'Resources', cost: {wood: 20}, width: 60, height: 60, color: '#8b4513', produces: { wood: 0.02 }, workersRequired: 1, imgSrc: 'assets/woodcutter.png' },
     'quarry': {name: 'Quarry', category: 'Resources', cost: {wood: 15, stone: 15}, width: 60, height: 60, color: '#a9a9a9', produces: { stone: 0.015 }, workersRequired: 2, imgSrc: 'assets/quarry.png', consumes: { tools: 0.001 }},
     'sand_pit': {name: 'Sand Pit', category: 'Resources', cost: {wood: 25, stone: 10}, width: 60, height: 60, color: '#eab308', produces: { sand: 0.02 }, workersRequired: 2, imgSrc: 'assets/sand_pit.png'},
     'sawmill': {name: 'Sawmill', category: 'Industry', cost: {wood: 80, stone: 40}, width: 60, height: 60, color: '#800000', produces: { wood: 0.08 }, workersRequired: 3, imgSrc: 'assets/sawmill.png', locked: true, consumes: { tools: 0.002 }},
@@ -157,6 +157,8 @@ function loadGame() {
     const savedGame = localStorage.getItem('humanitySurvivalSave');
     if (savedGame) {
         gameState = JSON.parse(savedGame);
+        if (!gameState.environment) gameState.environment = [];
+        if (!gameState.floatingTexts) gameState.floatingTexts = [];
         scenarios.forEach((scenario, sIndex) => {
             scenario.objectives.forEach((obj, oIndex) => {
                 if (sIndex < gameState.currentScenarioIndex || (sIndex === gameState.currentScenarioIndex && oIndex < gameState.currentObjectiveIndex)) {
@@ -166,6 +168,7 @@ function loadGame() {
                 }
             });
         });
+    } else {
     }
 }
 
@@ -220,6 +223,18 @@ function updateEvents(timestamp) {
             eventBar.classList.add('hidden');
         }
     }
+}
+
+function createFloatingText(text, x, y, color = '#ffffff') {
+    gameState.floatingTexts.push({ text, x, y, color, duration: 100, maxDuration: 100 });
+}
+
+function updateFloatingTexts() {
+    gameState.floatingTexts = gameState.floatingTexts.filter(ft => ft.duration > 0);
+    gameState.floatingTexts.forEach(ft => {
+        ft.y -= 0.5;
+        ft.duration--;
+    });
 }
 
 function update() {
@@ -283,6 +298,9 @@ function update() {
                         }
                         const finalProduction = productionRate * building.workersAssigned * happinessModifier * productionModifier;
                         gameState.resources[resource] += finalProduction;
+                        if (finalProduction > 0 && Math.random() < 0.05) {
+                             createFloatingText(`+${(finalProduction * 60).toFixed(2)}`, building.x + building.width / 2, building.y);
+                        }
                     }
                 }
             }
@@ -313,6 +331,7 @@ function update() {
             gameState.unemployedWorkers++;
         }
     }
+    updateFloatingTexts();
 }
 
 function isImageReady(blueprint) {
@@ -322,8 +341,24 @@ function isImageReady(blueprint) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += GRID_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += GRID_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+
     ctx.fillStyle = '#228B22';
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+
 
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
@@ -361,15 +396,27 @@ function draw() {
 
     if (gameState.buildMode && mousePos.x !== null) {
         const blueprint = buildingBlueprints[gameState.buildMode];
+        const snappedX = Math.round((mousePos.x - blueprint.width / 2) / GRID_SIZE) * GRID_SIZE;
+        const snappedY = Math.round((mousePos.y - blueprint.height) / GRID_SIZE) * GRID_SIZE;
         ctx.globalAlpha = 0.5;
         if (isImageReady(blueprint)) {
-            ctx.drawImage(blueprint.img, mousePos.x - blueprint.width / 2, mousePos.y - blueprint.height, blueprint.width, blueprint.height);
+            ctx.drawImage(blueprint.img, snappedX, snappedY, blueprint.width, blueprint.height);
         } else {
             ctx.fillStyle = blueprint.color;
-            ctx.fillRect(mousePos.x - blueprint.width / 2, mousePos.y - blueprint.height, blueprint.width, blueprint.height);
+            ctx.fillRect(snappedX, snappedY, blueprint.width, blueprint.height);
         }
         ctx.globalAlpha = 1.0;
     }
+
+    for (const ft of gameState.floatingTexts) {
+        ctx.globalAlpha = ft.duration / ft.maxDuration;
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha = 1.0;
+
 
     if (woodCountElement) woodCountElement.textContent = Math.floor(gameState.resources.wood);
     if (stoneCountElement) stoneCountElement.textContent = Math.floor(gameState.resources.stone);
@@ -428,10 +475,13 @@ function placeBuilding() {
             gameState.resources[resource] -= blueprint.cost[resource] * costModifier;
         }
 
+        const snappedX = Math.round((mousePos.x - blueprint.width / 2) / GRID_SIZE) * GRID_SIZE;
+        const snappedY = Math.round((mousePos.y - blueprint.height) / GRID_SIZE) * GRID_SIZE;
+
         const newBuilding = {
             type: gameState.buildMode,
-            x: mousePos.x - blueprint.width / 2,
-            y: mousePos.y - blueprint.height,
+            x: snappedX,
+            y: snappedY,
             width: blueprint.width,
             height: blueprint.height,
             color: blueprint.color,
@@ -473,15 +523,6 @@ function setupEventListeners() {
             showMessage('Build cancelled.', 1500);
         }
     });
-
-    openSettingsButton.addEventListener('click', () => {
-        settingsPanelModal.classList.remove('hidden');
-    });
-
-    closeSettingsPanelButton.addEventListener('click', () => {
-        settingsPanelModal.classList.add('hidden');
-    });
-
     openWorkerPanelButton.addEventListener('click', () => {
         workerPanelModal.classList.remove('hidden');
         populateWorkerPanel();
@@ -494,9 +535,9 @@ function setupEventListeners() {
     closeStatsPanelButton.addEventListener('click', () => {
         statsPanelModal.classList.add('hidden');
     });
-
+    
     newGameButton.addEventListener('click', () => {
-        if (confirm("Are you sure you want to start a new game? Your current progress will be lost.")) {
+        if (confirm('Are you sure? Your current progress will be lost.')) {
             localStorage.removeItem('humanitySurvivalSave');
             window.location.reload();
         }
@@ -712,6 +753,9 @@ function openTab(tabName) {
     tabButtons.forEach(button => button.classList.remove('active'));
     document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`).classList.add('active');
 }
+function generateEnvironment() {
+    gameState.environment = [];
+}
 
 function init() {
     const mainRect = canvas.parentElement.getBoundingClientRect();
@@ -734,3 +778,4 @@ window.addEventListener('resize', () => {
 });
 
 init();
+
