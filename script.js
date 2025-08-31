@@ -32,6 +32,18 @@ const eventTitle = document.getElementById('event-title');
 const eventDescription = document.getElementById('event-description');
 const eventProgressBar = document.getElementById('event-progress-bar');
 const selectedBuildingInfo = document.getElementById('selected-building-info');
+const upgradeCurrentName = document.getElementById('upgrade-current-name');
+const upgradeCurrentImage = document.getElementById('upgrade-current-image');
+const upgradeCurrentStats = document.getElementById('upgrade-current-stats');
+const upgradeNextWrapper = document.getElementById('upgrade-next-wrapper');
+const upgradeNextName = document.getElementById('upgrade-next-name');
+const upgradeNextImage = document.getElementById('upgrade-next-image');
+const upgradeNextBenefits = document.getElementById('upgrade-next-benefits');
+const upgradeCosts = document.getElementById('upgrade-costs');
+const upgradeButton = document.getElementById('upgrade-button');
+const upgradeRequirements = document.getElementById('upgrade-requirements');
+const noUpgradeMessage = document.getElementById('no-upgrade-message');
+const upgradeCloseButton = document.getElementById('upgrade-close-button');
 
 const GRID_SIZE = 30;
 
@@ -97,6 +109,14 @@ const buildingBlueprints = {
     'park': { name: 'Park', category: 'Life', cost: {wood: 50, stone: 20}, width: 60, height: 60, color: '#22c55e', providesHappiness: 5, imgSrc: 'assets/park.png' },
 }
 
+const upgradePaths = {
+    'shack': 'house',
+    'house': 'apartment',
+    'apartment': 'skyscraper'
+};
+
+const UPGRADE_COST_MULTIPLIER = 0.75;
+
 const researchTree = {
     'advanced_woodcutting': { name: 'Advanced Woodcutting', cost: 50, unlocks: ['sawmill'] },
     'glass_blowing': { name: 'Glass Blowing', cost: 100, unlocks: ['glassworks', 'apartment'] },
@@ -105,12 +125,12 @@ const researchTree = {
 
 const scenarios = [
     {
-        title: "Getting Started",
+        title: "Tutorial: Establish Shelter",
         objectives: [
-            { text: "Build a Shack or House", condition: () => gameState.buildings.some(b => b.type === 'shack' || b.type === 'house'), completed: false },
-            { text: "Reach a population of 5", condition: () => gameState.population >= 5, completed: false },
-            { text: "Build a Woodcutter", condition: () => gameState.buildings.some(b => b.type === 'woodcutter'), completed: false },
-            { text: "Assign a worker to the Woodcutter", condition: () => gameState.buildings.some(b => b.type === 'woodcutter' && b.workersAssigned > 0), completed: false },
+            { text: "Build a Shack (open Build then housing)", condition: () => gameState.buildings.some(b => b.type === 'shack' || b.type === 'house'), completed: false },
+            { text: "Reach a population of 5 (needs housing)", condition: () => gameState.population >= 5, completed: false },
+            { text: "Build a Woodcutter (for Wood income)", condition: () => gameState.buildings.some(b => b.type === 'woodcutter'), completed: false },
+            { text: "Assign a worker to the Woodcutter (Manage workers button)", condition: () => gameState.buildings.some(b => b.type === 'woodcutter' && b.workersAssigned > 0), completed: false },
         ]
     },
     {
@@ -134,7 +154,100 @@ const randomEvents = [
     { id: 'tool_shortage', title: 'Tool Shortage!', description: 'Tool consumption x2', duration: 45000, modifier: { type: 'consumes', resource: 'tools', multiplier: 2 } },
     { id: 'builders', title: 'Efficient Builders', description: 'Construction costs -20%', duration: 90000, modifier: { type: 'cost', multiplier: 0.8 } },
 ];
-
+const tipBanner = document.getElementById('tip-banner');
+let tipTimeoutId = null; // corrected variable name
+function showTip(text, kind = 'info', duration = 7000) {
+    if (!tipBanner) return;
+    tipBanner.classList.remove('hidden','warning','danger');
+    if (kind !== 'info') tipBanner.classList.add(kind);
+    tipBanner.textContent = text;
+    clearTimeout(tipTimeoutId);
+    tipTimeoutId = setTimeout(() => {
+        tipBanner.classList.add('hidden');
+    }, duration);
+}
+function clearTip() {
+    if (!tipBanner) return;
+    tipBanner.classList.add('hidden');
+    clearTimeout(tipTimeoutId);
+}
+gameState.tips = {
+    foodIntro: false,
+    buildFarmHint: false,
+    unemployedHint: false,
+    assignWorkerHint: false,
+    housingCapHint: false,
+    upgradeHint: false,
+}
+function evaluateContextualTips() {
+    if (!gameState.tips.foodIntro && gameState.resources.food < GAME_CONFIG.initialResources.food) {
+        gameState.tips.foodIntro = true;
+        showTip("Food is dropping. Build a Farm to sustain growth.", 'warning');
+    }
+    if (!gameState.tips.assignWorkerHint) {
+        const idleWorkplace = gameState.buildings.find(b => {
+            const bp = buildingBlueprints[b.type];
+            return bp.workersRequired && b.workersAssigned === 0;
+        });
+        if (idleWorkplace) {
+            gameState.tips.assignWorkerHint = true;
+            showTip("Assign workers: click 'Manage Workers' to staff buildings.", 'info');
+        }
+    }
+    if (!gameState.tips.buildFarmHint) {
+        const hasFarm = gameState.buildings.some(b => b.type === 'farm');
+        if (!hasFarm && gameState.population >= 3 && gameState.resources.food < GAME_CONFIG.initialResources.food * 0.85) {
+            gameState.tips.buildFarmHint = true;
+            showTip("Build a farm soon or food will run out.", 'danger');
+        }
+    }
+    if (!gameState.tips.unemployedHint && gameState.unemployedWorkers > 0) {
+        const hasSlot = gameState.buildings.some(b => {
+            const bp = buildingBlueprints[b.type];
+            return bp.workersRequired && b.workersAssigned < bp.workersRequired;
+        });
+        if (hasSlot) {
+            gameState.tips.unemployedHint = true;
+            showTip("You have unemployed citizens. Assign them for more production.", 'info');
+        }
+    }
+    if (!gameState.tips.housingCapHint && gameState.population === gameState.populationCap && gameState.populationCap > 0) {
+        gameState.tips.housingCapHint = true;
+        showTip("Population capped. Build or upgrade housing to grow further.", 'warning');
+    }
+}
+// Wrap upgrade panel to inject first-time upgrade tip
+const _openUpgradePanelOriginal = typeof openUpgradePanel === 'function' ? openUpgradePanel : null;
+if (_openUpgradePanelOriginal) {
+    openUpgradePanel = function(building, isRefresh = false) {
+        _openUpgradePanelOriginal(building, isRefresh);
+        if (building && !gameState.tips.upgradeHint && upgradePaths[building.type]) {
+            gameState.tips.upgradeHint = true;
+            showTip("Upgrading saves space and boosts stats. Check costs here.", 'info', 8000);
+        }
+    };
+}
+const _updateOriginal = update;
+update = function() {
+    _updateOriginal();
+    evaluateContextualTips();
+};
+function pulseManageWorkersIfNeeded() {
+    const idle = gameState.buildings.find(b => {
+        const bp = buildingBlueprints[b.type];
+        return bp.workersRequired && b.workersAssigned === 0;
+    });
+    if (idle) {
+    openWorkerPanelButton.classList.add('attention-pulse');
+    } else {
+        openWorkerPanelButton.classList.remove('attention-pulse');
+    }
+}
+const _refreshUIOriginal = refreshUI;
+refreshUI = function() {
+    _refreshUIOriginal();
+    pulseManageWorkersIfNeeded();
+}
 function loadImages() {
     for (const type in buildingBlueprints) {
         const blueprint = buildingBlueprints[type];
@@ -452,6 +565,11 @@ canvas.addEventListener('click', () => {
     }
     
     gameState.selectedBuilding = getBuildingAt(mousePos.x, mousePos.y);
+    if (gameState.selectedBuilding) {
+        openUpgradePanel(gameState.selectedBuilding);
+    } else {
+        hideUpgradePanel();
+    }
 });
 
 function placeBuilding() {
@@ -542,6 +660,10 @@ function setupEventListeners() {
             window.location.reload();
         }
     });
+
+    // Upgrade panel buttons
+    upgradeCloseButton?.addEventListener('click', hideUpgradePanel);
+    upgradeButton?.addEventListener('click', performUpgrade);
 }
 
 let messageTimeout;
@@ -560,6 +682,106 @@ function refreshUI() {
     if (!workerPanelModal.classList.contains('hidden')) {
         populateWorkerPanel();
     }
+    if (!selectedBuildingInfo.classList.contains('hidden') && gameState.selectedBuilding) {
+        openUpgradePanel(gameState.selectedBuilding, true); // refresh values
+    }
+}
+
+function hideUpgradePanel() {
+    selectedBuildingInfo?.classList.add('hidden');
+}
+
+function openUpgradePanel(building, isRefresh = false) {
+    if (!building) return hideUpgradePanel();
+    const blueprint = buildingBlueprints[building.type];
+    if (!blueprint) return hideUpgradePanel();
+
+    // Current building stats
+    if (upgradeCurrentName) upgradeCurrentName.textContent = blueprint.name + (building.needsTools ? ' (Needs Tools)' : '');
+    if (upgradeCurrentImage) upgradeCurrentImage.src = blueprint.imgSrc || '';
+    if (upgradeCurrentStats) upgradeCurrentStats.innerHTML = '';
+
+    const addStat = (ul, text) => { const li = document.createElement('li'); li.textContent = text; ul.appendChild(li); };
+    if (upgradeCurrentStats) {
+        if (blueprint.providesCap) addStat(upgradeCurrentStats, `Housing: +${blueprint.providesCap}`);
+        if (blueprint.providesHappiness) addStat(upgradeCurrentStats, `Happiness: +${blueprint.providesHappiness}`);
+        if (blueprint.produces) for (const r in blueprint.produces) addStat(upgradeCurrentStats, `Produces ${r}: ${blueprint.produces[r].toFixed(3)}/tick`);
+        if (blueprint.consumes) for (const r in blueprint.consumes) addStat(upgradeCurrentStats, `Consumes ${r}: ${blueprint.consumes[r].toFixed(3)}/tick`);
+        if (blueprint.workersRequired) addStat(upgradeCurrentStats, `Workers: ${building.workersAssigned||0}/${blueprint.workersRequired}`);
+    }
+
+    const nextType = upgradePaths[building.type];
+    if (!nextType) {
+        upgradeNextWrapper?.classList.add('hidden');
+        noUpgradeMessage?.classList.remove('hidden');
+        if (upgradeButton) upgradeButton.disabled = true;
+    } else {
+        const nextBlueprint = buildingBlueprints[nextType];
+        if (!nextBlueprint) return;
+        noUpgradeMessage?.classList.add('hidden');
+        upgradeNextWrapper?.classList.remove('hidden');
+        if (upgradeNextName) upgradeNextName.textContent = nextBlueprint.name;
+        if (upgradeNextImage) upgradeNextImage.src = nextBlueprint.imgSrc || '';
+        if (upgradeNextBenefits) upgradeNextBenefits.innerHTML = '';
+        if (upgradeNextBenefits) {
+            if (nextBlueprint.providesCap) addStat(upgradeNextBenefits, `Housing: +${nextBlueprint.providesCap}`);
+            if (nextBlueprint.providesHappiness) addStat(upgradeNextBenefits, `Happiness: +${nextBlueprint.providesHappiness}`);
+            if (nextBlueprint.produces) for (const r in nextBlueprint.produces) addStat(upgradeNextBenefits, `Produces ${r}: ${nextBlueprint.produces[r].toFixed(3)}/tick`);
+            if (nextBlueprint.consumes) for (const r in nextBlueprint.consumes) addStat(upgradeNextBenefits, `Consumes ${r}: ${nextBlueprint.consumes[r].toFixed(3)}/tick`);
+            if (nextBlueprint.workersRequired) addStat(upgradeNextBenefits, `Workers: ${nextBlueprint.workersRequired}`);
+        }
+        const discountedCost = {};
+        for (const r in nextBlueprint.cost) discountedCost[r] = Math.ceil(nextBlueprint.cost[r] * UPGRADE_COST_MULTIPLIER);
+        if (upgradeCosts) upgradeCosts.innerHTML = Object.entries(discountedCost).map(([r,v]) => `<span>${r}: ${v}</span>`).join('');
+        let reqText = '';
+        if (nextBlueprint.locked && !gameState.unlockedTechs.some(t => (researchTree[t]?.unlocks||[]).includes(nextType))) {
+            reqText = 'Requires research to unlock.';
+        }
+        if (upgradeRequirements) upgradeRequirements.textContent = reqText;
+        let canAfford = !reqText;
+        if (canAfford) {
+            for (const r in discountedCost) {
+                if ((gameState.resources[r]||0) < discountedCost[r]) { canAfford = false; break; }
+            }
+        }
+        if (upgradeButton) {
+            upgradeButton.disabled = !canAfford;
+            upgradeButton.dataset.nextType = nextType;
+            upgradeButton.dataset.cost = JSON.stringify(discountedCost);
+        }
+    }
+
+    selectedBuildingInfo?.classList.remove('hidden');
+}
+
+function performUpgrade() {
+    if (!gameState.selectedBuilding || !upgradeButton?.dataset.nextType) return;
+    const nextType = upgradeButton.dataset.nextType;
+    const cost = JSON.parse(upgradeButton.dataset.cost || '{}');
+    for (const r in cost) {
+        if ((gameState.resources[r]||0) < cost[r]) {
+            showMessage('Not enough resources.', 2500);
+            return;
+        }
+    }
+    for (const r in cost) gameState.resources[r] -= cost[r];
+    const old = gameState.selectedBuilding;
+    const idx = gameState.buildings.indexOf(old);
+    if (idx === -1) return;
+    const newBlueprint = buildingBlueprints[nextType];
+    const upgraded = {
+        ...old,
+        type: nextType,
+        width: newBlueprint.width,
+        height: newBlueprint.height,
+        color: newBlueprint.color,
+        workersAssigned: Math.min(old.workersAssigned || 0, newBlueprint.workersRequired || 0)
+    };
+    gameState.buildings[idx] = upgraded;
+    gameState.selectedBuilding = upgraded;
+    showMessage('Upgraded to ' + newBlueprint.name + '!', 3000);
+    refreshUI();
+    openUpgradePanel(upgraded, true);
 }
 
 function populateScenarioPanel() {

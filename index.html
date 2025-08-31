@@ -19,19 +19,19 @@
     </main>
 
     <div id="top-ui-container">
+        <div id="tip-banner" class="hidden"></div>
         <div id="resource-display">
-            <p>Wood: <span id="wood-count">0</span></p>
-            <p>Stone: <span id="stone-count">0</span></p>
-            <p>Food: <span id="food-count">0</span></p>
-            <p>Sand: <span id="sand-count">0</span></p>
-            <p>Glass: <span id="glass-count">0</span></p>
-            <p>Tools: <span id="tools-count">0</span></p>
-            <p>Knowledge: <span id="knowledge-count">0</span></p>
-            <p>Population: <span id="population-count">0</span>/<span id="population-cap">0</span></p>
-            <p>Unemployed: <span id="unemployed-workers-count">0</span></p>
-            <p>Happiness: <span id="happiness-count">100</span>%</p>
+            <p title="Basic building material. Produced by Woodcutter or Sawmill.">Wood: <span id="wood-count">0</span></p>
+            <p title="Used in construction. Mined at the Quarry.">Stone: <span id="stone-count">0</span></p>
+            <p title="Consumed by population. Grown on Farms.">Food: <span id="food-count">0</span></p>
+            <p title="Refined into Glass. Dug from Sand Pit.">Sand: <span id="sand-count">0</span></p>
+            <p title="Needed for advanced housing & research. Made in Glassworks.">Glass: <span id="glass-count">0</span></p>
+            <p title="Boosts industry efficiency. Forged at Toolsmith.">Tools: <span id="tools-count">0</span></p>
+            <p title="Spent on research. Generated in Research Lab.">Knowledge: <span id="knowledge-count">0</span></p>
+            <p title="People / Housing Capacity.">Population: <span id="population-count">0</span>/<span id="population-cap">0</span></p>
+            <p title="Idle citizens ready to assign.">Unemployed: <span id="unemployed-workers-count">0</span></p>
+            <p title="Affects growth & productivity.">Happiness: <span id="happiness-count">100</span>%</p>
         </div>
-
         <div id="scenario-panel">
             <h2 id="scenario-title">The First Skyscraper<span id="scenario-toggle-icon">▼</span></h2>
             <ul id="objectives-list"></ul>
@@ -56,6 +56,33 @@
 
     <button id="open-worker-panel-button">Manage Workers</button>
 
+    <div id="selected-building-info" class="hidden">
+        <div class="upgrade-header">
+            <div class="current-info">
+                <img id="upgrade-current-image" alt="Current" />
+                <div>
+                    <h3 id="upgrade-current-name">Building</h3>
+                    <ul id="upgrade-current-stats" class="stat-list"></ul>
+                </div>
+            </div>
+            <button id="upgrade-close-button" title="Close">✕</button>
+        </div>
+        <div class="upgrade-arrow">➜</div>
+        <div id="upgrade-next-wrapper" class="next-info hidden">
+            <div class="next-info-inner">
+                <img id="upgrade-next-image" alt="Next" />
+                <div>
+                    <h3 id="upgrade-next-name">Upgrade</h3>
+                    <ul id="upgrade-next-benefits" class="stat-list"></ul>
+                    <div id="upgrade-costs"></div>
+                </div>
+            </div>
+            <button id="upgrade-button">Upgrade</button>
+            <p id="upgrade-requirements" class="requirements"></p>
+        </div>
+        <div id="no-upgrade-message" class="no-upgrade hidden">No further upgrades available.</div>
+    </div>
+
     <div id="worker-panel-modal" class="hidden">
         <div class="modal-content">
             <h2>Worker Management</h2>
@@ -72,7 +99,6 @@
             <button id="close-stats-panel-button">Close</button>
         </div>
     </div>
-
 <script src ="script.js" defer></script>
 </body>
 </html>
