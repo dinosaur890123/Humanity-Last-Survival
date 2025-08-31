@@ -66,11 +66,11 @@ let gameState = {
 const RESOURCE_LIST = ['wood','stone','food','sand','glass','tools','knowledge'];
 const resourceRateTracker = {
     windowSeconds: 60,
-    sampleInterval: 6000,
+    sampleInterval: 1000,
     lastSampleTime: performance.now(),
     lastValues: {},
     perSecondDeltas: {},
-}
+};
 RESOURCE_LIST.forEach(r => {
     resourceRateTracker.lastValues[r] = gameState.resources[r] || 0;
     resourceRateTracker.perSecondDeltas[r] = [];
@@ -82,12 +82,12 @@ function sampleResourceRates(now) {
     RESOURCE_LIST.forEach(r => {
         const current = gameState.resources[r] || 0;
         const prev = resourceRateTracker.lastValues[r];
-        const deltaPerSecond = (current - prev) / elapsedSeconds;
+        const deltaPerSecond = (current - prev) / Math.max(elapsedSeconds, 0.001);
         resourceRateTracker.lastValues[r] = current;
         const arr = resourceRateTracker.perSecondDeltas[r];
         arr.push(deltaPerSecond);
         while (arr.length > resourceRateTracker.windowSeconds) arr.shift();
-    })
+    });
 }
 function getNetRatePerMinute(resource) {
     const arr = resourceRateTracker.perSecondDeltas[resource];
@@ -99,6 +99,18 @@ function formatRate(val) {
     if (Math.abs(val) < 0.01) return '0.00/m';
     const sign = val > 0 ? '+' : '';
     return `${sign}${val.toFixed(val > -1 && val < 1 ? 2 : 1)}/m`;
+}
+function updateResourceRateUI() {
+    RESOURCE_LIST.forEach(r => {
+        const el = document.getElementById(r + '-rate');
+        if (!el) return;
+        const perMin = getNetRatePerMinute(r);
+        el.textContent = formatRate(perMin);
+        el.classList.remove('pos','neg','neu');
+        if (perMin > 0.05) el.classList.add('pos');
+        else if (perMin < -0.05) el.classList.add('neg');
+        else el.classList.add('neu');
+    })
 }
 const tipBanner = document.getElementById('tip-banner');
 let tipTimeoutId = null;
@@ -470,11 +482,13 @@ function draw() {
     if (populationCapElement) populationCapElement.textContent = gameState.populationCap;
     if (unemployedWorkersElement) unemployedWorkersElement.textContent = gameState.unemployedWorkers;
     if (happinessElement) happinessElement.textContent = Math.floor(gameState.happiness);
+    updateResourceRateUI();
 }
 
 function gameLoop(timestamp) {
     updateEvents(timestamp);
     update();
+    sampleResourceRates(timestamp);
     draw();
     requestAnimationFrame(gameLoop);
 }
