@@ -66,7 +66,7 @@ const GAME_CONFIG = {
         saveInterval: 10000,
         eventIntervalMin: 60000,
         eventIntervalRandom: 60000
-    }
+    },
     demolitionRefund: 0.5
 };
 let gameState = {
