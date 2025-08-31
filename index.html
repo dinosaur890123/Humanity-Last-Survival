@@ -4,97 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Humanity's Last Survival</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <main>
-        <div id="top-ui-container">
-            <div id="resource-display">
-                <p>Wood: <span id="wood-count">0</span></p>
-                <p>Stone: <span id="stone-count">0</span></p>
-                <p>Food: <span id="food-count">0</span></p>
-                <p>Sand: <span id="sand-count">0</span></p>
-                <p>Glass: <span id="glass-count">0</span></p>
-                <p>Tools: <span id="tools-count">0</span></p>
-                <p>Knowledge: <span id="knowledge-count">0</span></p>
-                <p>Population: <span id="population-count">0</span>/<span id="population-cap">0</span></p>
-                <p>Unemployed: <span id="unemployed-workers-count">0</span></p>
-                <p>Happiness: <span id="happiness-count">0</span>%</p>
-            </div>
-
-            <div id="scenario-display">
-                <h2 id="scenario-title">A New Beginning</h2>
-                <ul id="objectives-list">
-                </ul>
-            </div>
-        </div>
-        
         <canvas id="gameCanvas"></canvas>
-
         <div id="event-notification-bar" class="hidden">
-            <h3 id="event-title">Event Title</h3>
-            <p id="event-description">Event Description</p>
+            <h3 id="event-title"></h3>
+            <p id="event-description"></p>
             <div class="progress-bar-container">
                 <div id="event-progress-bar"></div>
             </div>
         </div>
-        
-        <div id="selected-building-panel" class="hidden">
-            <button id="close-selected-panel-button">&times;</button>
-            <h3 id="selected-building-name">Building Name</h3>
-            <p id="selected-building-stats">Stats go here</p>
-            <div id="selected-building-actions">
-                <button id="upgrade-button" class="hidden">Upgrade</button>
-                <button id="demolish-button">Demolish</button>
-            </div>
+    </main>
+
+    <div id="top-ui-container">
+        <div id="resource-display">
+            <p>Wood: <span id="wood-count">0</span></p>
+            <p>Stone: <span id="stone-count">0</span></p>
+            <p>Food: <span id="food-count">0</span></p>
+            <p>Sand: <span id="sand-count">0</span></p>
+            <p>Glass: <span id="glass-count">0</span></p>
+            <p>Tools: <span id="tools-count">0</span></p>
+            <p>Knowledge: <span id="knowledge-count">0</span></p>
+            <p>Population: <span id="population-count">0</span>/<span id="population-cap">0</span></p>
+            <p>Unemployed: <span id="unemployed-workers-count">0</span></p>
+            <p>Happiness: <span id="happiness-count">100</span>%</p>
         </div>
 
-        <button id="open-worker-panel-button">Manage Workers</button>
-        <button id="open-settings-button">Settings</button>
-    </main>
+        <div id="scenario-panel">
+            <h2 id="scenario-title">The First Skyscraper<span id="scenario-toggle-icon">▼</span></h2>
+            <ul id="objectives-list"></ul>
+        </div>
+    </div>
 
     <aside>
         <div class="tabs">
-            <button class="tab-button" onclick="openTab('build-menu')">Build</button>
+            <button class="tab-button active" onclick="openTab('build-menu')">Build</button>
             <button class="tab-button" onclick="openTab('research-panel')">Research</button>
             <button class="tab-button" onclick="openTab('settings-panel')">Settings</button>
         </div>
-        
-        <div id="build-menu" class="tab-content">
-        </div>
-        
-        <div id="research-panel" class="tab-content">
-        </div>
 
+        <div id="build-menu" class="tab-content active"></div>
+        <div id="research-panel" class="tab-content"></div>
         <div id="settings-panel" class="tab-content">
-            <button id="settings-new-game-button">Start New Game</button>
+            <button id="settings-new-game-button">New Game</button>
         </div>
 
         <div id="message-box"></div>
     </aside>
 
+    <button id="open-worker-panel-button">Manage Workers</button>
+
     <div id="worker-panel-modal" class="hidden">
         <div class="modal-content">
-            <button class="close-modal-button" id="close-worker-panel-button">&times;</button>
-            <h2>Worker Assignments</h2>
-            <p>Unemployed Workers: <span id="unemployed-workers-span">0</span></p>
-            <div id="worker-assignments-list">
-            </div>
+            <h2>Worker Management</h2>
+            <ul id="worker-assignments-list"></ul>
+            <button id="close-worker-panel-button">Close</button>
         </div>
     </div>
-    
+
     <div id="stats-panel-modal" class="hidden">
         <div class="modal-content">
-            <button class="close-modal-button" id="close-stats-panel-button">&times;</button>
-            <h2>Colony Statistics</h2>
-            <img id="stats-image" src="assets/stats_icon.png" alt="Stats Icon">
-            <ul id="stats-list">
-            </ul>
+            <h2 id="stats-name"></h2>
+            <img id="stats-image" src="" alt="Building Image">
+            <ul id="stats-list"></ul>
+            <button id="close-stats-panel-button">Close</button>
         </div>
     </div>
 
-    <script src="script.js"></script>
+<script src ="script.js" defer></script>
 </body>
 </html>
-
-
