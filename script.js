@@ -643,9 +643,6 @@ function refreshUI() {
     }
     populateResearchPanel();
     populateScenarioPanel();
-    if (!workerPanelModal.classList.contains('hidden')) {
-        populateWorkerPanel();
-    }
     if (!selectedBuildingInfo.classList.contains('hidden') && gameState.selectedBuilding) {
         openUpgradePanel(gameState.selectedBuilding, true); 
         updateDemolishTooltip(gameState.selectedBuilding); 
@@ -903,7 +900,6 @@ function showStatsPanel(type) {
 function populateWorkerPanel() {
     workerAssignmentsList.innerHTML = '';
     const workplaces = gameState.buildings.filter(b => buildingBlueprints[b.type].workersRequired);
-
     if (workplaces.length === 0) {
         workerAssignmentsList.innerHTML = '<li>No workplaces built yet.</li>';
         return;
@@ -928,6 +924,7 @@ function populateWorkerPanel() {
             if (building.workersAssigned > 0) {
                 building.workersAssigned--;
                 gameState.unemployedWorkers++;
+                statusSpan.textContent = `${building.workersAssigned}/${blueprint.workersRequired}`;
                 refreshUI();
             }
         };
@@ -941,6 +938,7 @@ function populateWorkerPanel() {
             if (gameState.unemployedWorkers > 0 && building.workersAssigned < blueprint.workersRequired) {
                 building.workersAssigned++;
                 gameState.unemployedWorkers--;
+                statusSpan.textContent = `${building.workersAssigned}/${blueprint.workersRequired}`;
                 refreshUI();
             }
         };
