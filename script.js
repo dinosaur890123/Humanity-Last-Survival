@@ -403,6 +403,19 @@ function update() {
 function isImageReady(blueprint) {
     return blueprint.img && blueprint.img.complete && !blueprint.img.failed && blueprint.img.naturalWidth !== 0;
 }
+function findLowestSupportY(x, width) {
+    const groundY = canvas.height - 50;
+    let highestY = groundY;
+    for (const building of gameState.buildings) {
+        const overlapsX = x < building.x + building.width && x + width > building.x;
+        if (overlapsX) {
+            if (building.y < highestY) {
+                highestY = building.y;
+            }
+        }
+    }
+    return highestY;
+}
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -463,13 +476,14 @@ function draw() {
         const blueprint = buildingBlueprints[gameState.buildMode];
         if (blueprint) {
             const previewX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
+            const supportY = findLowestSupportY(previewX, blueprint.width);
             const previewY = Math.floor(mousePos.y / GRID_SIZE) * GRID_SIZE;
             ctx.save();
             ctx.globalAlpha = 0.6;
             if (blueprint.img && blueprint.img.complete && blueprint.img.naturalWidth !== 0) {
                 ctx.drawImage(blueprint.img, previewX, previewY, blueprint.width, blueprint.height);
             } else {
-                ctx.fillStyle = blueprint.color || '#fff';
+                ctx.fillStyle = blueprint.color || '#ffffff';
                 ctx.fillRect(previewX, previewY, blueprint.width, blueprint.height);
             }
             ctx.restore();
@@ -553,6 +567,7 @@ function placeBuilding() {
         }
 
     const snappedX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
+    const supportY = findLowestSupportY(snappedX, blueprint.width);
     const snappedY = Math.floor(mousePos.y / GRID_SIZE) * GRID_SIZE;
 
         const newBuilding = {
@@ -917,7 +932,6 @@ function populateWorkerPanel() {
         controlsDiv.style.display = 'flex';
         controlsDiv.style.alignItems = 'center';
         controlsDiv.style.gap = '0.5rem';
-
         const removeBtn = document.createElement('button');
         removeBtn.textContent = '-';
         removeBtn.onclick = () => {
