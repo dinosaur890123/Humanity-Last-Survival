@@ -63,6 +63,7 @@ let gameState = {
     activeEvent: null,
     nextEventTime: 0,
 };
+let buildMenuDirty = true;
 const RESOURCE_LIST = ['wood','stone','food','sand','glass','tools','knowledge'];
 const resourceRateTracker = {
     windowSeconds: 60,
@@ -75,6 +76,20 @@ RESOURCE_LIST.forEach(r => {
     resourceRateTracker.lastValues[r] = gameState.resources[r] || 0;
     resourceRateTracker.perSecondDeltas[r] = [];
 })
+function updateUIDisplays() {
+    if (woodCountElement) woodCountElement.textContent = Math.floor(gameState.resources.wood);
+    if (stoneCountElement) stoneCountElement.textContent = Math.floor(gameState.resources.stone);
+    if (foodCountElement) foodCountElement.textContent = Math.floor(gameState.resources.food);
+    if (sandCountElement) sandCountElement.textContent = Math.floor(gameState.resources.sand);
+    if (glassCountElement) glassCountElement.textContent = Math.floor(gameState.resources.glass);
+    if (toolsCountElement) toolsCountElement.textContent = Math.floor(gameState.resources.tools);
+    if (knowledgeCountElement) knowledgeCountElement.textContent = Math.floor(gameState.resources.knowledge);
+    if (populationCountElement) populationCountElement.textContent = gameState.population;
+    if (populationCapElement) populationCapElement.textContent = gameState.populationCap;
+    if (unemployedWorkersElement) unemployedWorkersElement.textContent = gameState.unemployedWorkers;
+    if (happinessElement) happinessElement.textContent = Math.floor(gameState.happiness);
+    updateResourceRateUI();
+}
 function sampleResourceRates(now) {
     if (now - resourceRateTracker.lastSampleTime < resourceRateTracker.sampleInterval) return;
     const elapsedSeconds = (now - resourceRateTracker.lastSampleTime) / 1000;
@@ -174,8 +189,6 @@ function evaluateContextualTips() {
         showTip("Population capped. Build or upgrade housing to grow further.", 'warning');
     }
 }
-const _openUpgradePanelOriginal = typeof openUpgradePanel === 'function' ? openUpgradePanel : null;
-const _updateOriginal = update;
 function pulseManageWorkersIfNeeded() {
     const idle = gameState.buildings.find(b => {
         const bp = buildingBlueprints[b.type];
@@ -187,7 +200,6 @@ function pulseManageWorkersIfNeeded() {
         openWorkerPanelButton.classList.remove('attention-pulse');
     }
 }
-const _refreshUIOriginal = refreshUI;
 function loadImages() {
     for (const type in buildingBlueprints) {
         const blueprint = buildingBlueprints[type];
@@ -293,10 +305,10 @@ function update() {
     updateScenario();
     evaluateContextualTips();
 
-    let baseHappiness = 50;
+    let baseHappiness = GAME_CONFIG.happiness.base;
     let happinessFactors = 0;
-    happinessFactors += (gameState.resources.food > 0) ? 20 : -30;
-    happinessFactors -= gameState.unemployedWorkers * 2;
+    happinessFactors += (gameState.resources.food > 0) ? GAME_CONFIG.happiness.foodBonus : GAME_CONFIG.happiness.foodPenalty;
+    happinessFactors -= gameState.unemployedWorkers * GAME_CONFIG.happiness.unemployedPenalty;
     for(const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
         if (blueprint.providesHappiness) {
@@ -306,11 +318,11 @@ function update() {
     let targetHappiness = baseHappiness + happinessFactors;
     if (targetHappiness > 100) targetHappiness = 100;
     if (targetHappiness < 0) targetHappiness = 0;
-    gameState.happiness += (targetHappiness - gameState.happiness) * 0.0005;
+    gameState.happiness += (targetHappiness - gameState.happiness) * GAME_CONFIG.rates.happinessChangeSpeed;
 
     let happinessModifier = 1;
-    if (gameState.happiness > 70) happinessModifier = 1.1;
-    if (gameState.happiness < 30) happinessModifier = 0.8;
+    if (gameState.happiness > GAME_CONFIG.happiness.highHappinessThreshold) happinessModifier = GAME_CONFIG.happiness.highHappinessModifier;
+    if (gameState.happiness < GAME_CONFIG.happiness.lowHappinessThreshold) happinessModifier = GAME_CONFIG.happiness.lowHappinessModifier;
 
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
@@ -321,7 +333,7 @@ function update() {
 
             if (blueprint.consumes) {
                 if (blueprint.consumes.tools && gameState.resources.tools < blueprint.consumes.tools) {
-                    productionModifier = 0.5;
+                    productionModifier = GAME_CONFIG.production.noToolsModifier;
                     building.needsTools = true;
                 }
 
@@ -361,7 +373,7 @@ function update() {
     }
 
     if (gameState.population > 0) {
-        const foodConsumed = gameState.population * 0.002;
+        const foodConsumed = gameState.population * GAME_CONFIG.rates.foodConsumption;
         gameState.resources.food -= foodConsumed;
 
         if (gameState.resources.food < 0) {
@@ -378,7 +390,7 @@ function update() {
     gameState.populationCap = newPopCap;
 
     if (gameState.population < gameState.populationCap) {
-        const growthChance = (gameState.population === 0) ? 0.01 : 0.008;
+        const growthChance = (gameState.population === 0) ? GAME_CONFIG.rates.initialPopulationGrowthChance : GAME_CONFIG.rates.populationGrowthChance;
         if (Math.random() < growthChance) {
             gameState.population++;
             gameState.unemployedWorkers++;
@@ -393,7 +405,6 @@ function isImageReady(blueprint) {
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 1;
     for (let x = 0; x < canvas.width; x += GRID_SIZE) {
@@ -447,18 +458,22 @@ function draw() {
         ctx.strokeRect(building.x, building.y, building.width, building.height);
     }
 
-    if (gameState.buildMode && mousePos.x !== null) {
+    if (gameState.buildMode && mousePos.x !== null && mousePos.y !== null) {
         const blueprint = buildingBlueprints[gameState.buildMode];
-        const snappedX = Math.round((mousePos.x - blueprint.width / 2) / GRID_SIZE) * GRID_SIZE;
-        const snappedY = Math.round((mousePos.y - blueprint.height) / GRID_SIZE) * GRID_SIZE;
-        ctx.globalAlpha = 0.5;
-        if (isImageReady(blueprint)) {
-            ctx.drawImage(blueprint.img, snappedX, snappedY, blueprint.width, blueprint.height);
-        } else {
-            ctx.fillStyle = blueprint.color;
-            ctx.fillRect(snappedX, snappedY, blueprint.width, blueprint.height);
+        if (blueprint) {
+            const previewX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
+            const previewY = Math.floor(mousePos.y / GRID_SIZE) * GRID_SIZE;
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            if (blueprint.img && blueprint.img.complete && blueprint.img.naturalWidth !== 0) {
+                ctx.drawImage(blueprint.img, previewX, previewY, blueprint.width, blueprint.height);
+            } else {
+                ctx.fillStyle = blueprint.color || '#fff';
+                ctx.fillRect(previewX, previewY, blueprint.width, blueprint.height);
+            }
+            ctx.restore();
         }
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = 0.5;
     }
 
     for (const ft of gameState.floatingTexts) {
@@ -469,26 +484,28 @@ function draw() {
         ctx.fillText(ft.text, ft.x, ft.y);
     }
     ctx.globalAlpha = 1.0;
-
-
-    if (woodCountElement) woodCountElement.textContent = Math.floor(gameState.resources.wood);
-    if (stoneCountElement) stoneCountElement.textContent = Math.floor(gameState.resources.stone);
-    if (foodCountElement) foodCountElement.textContent = Math.floor(gameState.resources.food);
-    if (sandCountElement) sandCountElement.textContent = Math.floor(gameState.resources.sand);
-    if (glassCountElement) glassCountElement.textContent = Math.floor(gameState.resources.glass);
-    if (toolsCountElement) toolsCountElement.textContent = Math.floor(gameState.resources.tools);
-    if (knowledgeCountElement) knowledgeCountElement.textContent = Math.floor(gameState.resources.knowledge);
-    if (populationCountElement) populationCountElement.textContent = gameState.population;
-    if (populationCapElement) populationCapElement.textContent = gameState.populationCap;
-    if (unemployedWorkersElement) unemployedWorkersElement.textContent = gameState.unemployedWorkers;
-    if (happinessElement) happinessElement.textContent = Math.floor(gameState.happiness);
-    updateResourceRateUI();
 }
 
+let lastUpdateTime = 0;
+const UPDATE_INTERVAL = 100;
+
 function gameLoop(timestamp) {
-    updateEvents(timestamp);
-    update();
-    sampleResourceRates(timestamp);
+    if (!lastUpdateTime) {
+        lastUpdateTime = timestamp;
+    }
+    const deltaTime = timestamp - lastUpdateTime;
+
+    if (deltaTime >= UPDATE_INTERVAL) {
+        const logicTicks = Math.floor(deltaTime / UPDATE_INTERVAL);
+        for (let i = 0; i < logicTicks; i++) {
+            update();
+        }
+        updateEvents(timestamp);
+        sampleResourceRates(timestamp);
+        refreshUI();
+        lastUpdateTime += logicTicks * UPDATE_INTERVAL;
+    }
+
     draw();
     requestAnimationFrame(gameLoop);
 }
@@ -501,11 +518,10 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('click', () => {
-    if (gameState.buildMode) {
+    if (gameState.buildMode && mousePos.x !== null && mousePos.y !== null) {
         placeBuilding();
         return;
     }
-    
     gameState.selectedBuilding = getBuildingAt(mousePos.x, mousePos.y);
     if (gameState.selectedBuilding) {
         openUpgradePanel(gameState.selectedBuilding);
@@ -535,8 +551,8 @@ function placeBuilding() {
             gameState.resources[resource] -= blueprint.cost[resource] * costModifier;
         }
 
-        const snappedX = Math.round((mousePos.x - blueprint.width / 2) / GRID_SIZE) * GRID_SIZE;
-        const snappedY = Math.round((mousePos.y - blueprint.height) / GRID_SIZE) * GRID_SIZE;
+    const snappedX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
+    const snappedY = Math.floor(mousePos.y / GRID_SIZE) * GRID_SIZE;
 
         const newBuilding = {
             type: gameState.buildMode,
@@ -617,7 +633,11 @@ function showMessage(text, duration) {
 }
 
 function refreshUI() {
-    populateBuildMenu();
+    updateUIDisplays();
+    if (buildMenuDirty) {
+        populateBuildMenu();
+        buildMenuDirty = false;
+    }
     populateResearchPanel();
     populateScenarioPanel();
     if (!workerPanelModal.classList.contains('hidden')) {
@@ -887,9 +907,7 @@ function populateResearchPanel() {
     for (const techId in researchTree) {
         const tech = researchTree[techId];
         const button = document.createElement('button');
-        
         const isUnlocked = gameState.unlockedTechs.includes(techId);
-        
         button.innerHTML = `${tech.name}<br><small>Cost: ${tech.cost} Knowledge</small>`;
         button.disabled = isUnlocked || gameState.resources.knowledge < tech.cost;
         
@@ -904,6 +922,7 @@ function populateResearchPanel() {
                 tech.unlocks.forEach(buildingId => {
                     buildingBlueprints[buildingId].locked = false;
                 });
+                buildMenuDirty = true;
                 refreshUI();
             }
         });
@@ -933,8 +952,7 @@ function init() {
     loadImages();
     setupEventListeners();
     refreshUI();
-    
-    setInterval(saveGame, 10000);
+    setInterval(saveGame, GAME_CONFIG.timers.saveInterval);
     requestAnimationFrame(gameLoop);
 }
         
