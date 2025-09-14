@@ -44,6 +44,7 @@ const upgradeButton = document.getElementById('upgrade-button');
 const upgradeRequirements = document.getElementById('upgrade-requirements');
 const noUpgradeMessage = document.getElementById('no-upgrade-message');
 const upgradeCloseButton = document.getElementById('upgrade-close-button');
+const demolishButton = document.getElementById('demolish-button');
 
 let gameState = {
     resources: {...GAME_CONFIG.initialResources},
@@ -555,6 +556,7 @@ function placeBuilding() {
     const snappedY = Math.floor(mousePos.y / GRID_SIZE) * GRID_SIZE;
 
         const newBuilding = {
+            id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2)),
             type: gameState.buildMode,
             x: snappedX,
             y: snappedY,
@@ -621,6 +623,7 @@ function setupEventListeners() {
 
     upgradeCloseButton?.addEventListener('click', hideUpgradePanel);
     upgradeButton?.addEventListener('click', performUpgrade);
+    demolishButton?.addEventListener('click', performDemolish);
 }
 
 let messageTimeout;
@@ -645,6 +648,7 @@ function refreshUI() {
     }
     if (!selectedBuildingInfo.classList.contains('hidden') && gameState.selectedBuilding) {
         openUpgradePanel(gameState.selectedBuilding, true); 
+        updateDemolishTooltip(gameState.selectedBuilding); 
     }
     pulseManageWorkersIfNeeded();
 }
@@ -657,11 +661,12 @@ function openUpgradePanel(building, isRefresh = false) {
     if (!building) return hideUpgradePanel();
     const blueprint = buildingBlueprints[building.type];
     if (!blueprint) return hideUpgradePanel();
+    if (demolishButton) demolishButton.style.display = 'block';
+    if (upgradeCurrentStats) upgradeCurrentStats.innerHTML = '';
 
     if (upgradeCurrentName) upgradeCurrentName.textContent = blueprint.name + (building.needsTools ? ' (Needs Tools)' : '');
     if (upgradeCurrentImage) upgradeCurrentImage.src = blueprint.imgSrc || '';
     if (upgradeCurrentStats) upgradeCurrentStats.innerHTML = '';
-
     const addStat = (ul, text) => { const li = document.createElement('li'); li.textContent = text; ul.appendChild(li); };
     if (upgradeCurrentStats) {
         if (blueprint.providesCap) addStat(upgradeCurrentStats, `Housing: +${blueprint.providesCap}`);
@@ -717,8 +722,33 @@ function openUpgradePanel(building, isRefresh = false) {
         gameState.tips.upgradeHint = true;
         showTip("Upgrading saves space and boosts stats. Check costs here.", 'info', 8000);
     }
+    if (demolishButton) {
+        demolishButton.disabled = false;
+        updateDemolishTooltip(building);
+    }
 }
+function updateDemolishTooltip(building) {
+    if (!demolishButton || !building) return;
+    const bp = buildingBlueprints[building.type];
+    if (!bp) { demolishButton.title = 'Demolish'; return;}
+    let refundText = 'No build cost to refund';
+    if (bp.cost) {
+        const parts = Object.entries(bp.cost)
+        .map(([r,v]) => `${Math.floor(v * 0.5)} ${r}`);
+        if (parts.length) refundText = 'Refund:' + parts.join(', ');
+    }
+    let warning = '';
+    const capLoss = bp.providesCap || 0;
+    if (capLoss > 0) {
+        const newCap = gameState.populationCap - capLoss;
+        if (gameState.population > newCap) {
+            const over = gameState.population - newCap;
+            warning = `\nWarning: Population would exceed housing by ${over}. (Growth will halt)`;
+        }
+    }
+    demolishButton.title = `Demolish ${bp.name}\n${refundText}${warning}\nClick to remove this building.`;
 
+}
 function performUpgrade() {
     if (!gameState.selectedBuilding || !upgradeButton?.dataset.nextType) return;
     const nextType = upgradeButton.dataset.nextType;
@@ -748,7 +778,30 @@ function performUpgrade() {
     refreshUI();
     openUpgradePanel(upgraded, true);
 }
+function performDemolish() {
+    if (!gameState.selectedBuilding) return;
+    const building = gameState.selectedBuilding;
+    const blueprint = buildingBlueprints[building.type];
+    if (!blueprint) return;
+    if (!confirm(`Demolish ${blueprint.name}? You will receive 50% of its build cost back.`)) return;
+    if (blueprint.cost) {
+        for (const resource in blueprint.cost) {
+            const refund = Math.floor(blueprint.cost[resource] * 0.5);
+            if (refund > 0) gameState.resources[resource] += refund;
+        }
+    }
+    if (building.workersAssigned > 0) {
+        gameState.unemployedWorkers += building.workersAssigned;
+    }
 
+    const idx = gameState.buildings.indexOf(building);
+    if (idx !== -1) gameState.buildings.splice(idx, 1);
+
+    gameState.selectedBuilding = null;
+    hideUpgradePanel();
+    showMessage('Building demolished.', 2000);
+    refreshUI();
+}
 function populateScenarioPanel() {
     const currentScenario = scenarios[gameState.currentScenarioIndex];
     if (!currentScenario) return;
