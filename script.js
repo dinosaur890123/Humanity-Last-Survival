@@ -65,6 +65,8 @@ let gameState = {
     nextEventTime: 0,
 };
 let buildMenuDirty = true;
+let researchPanelDirty = true;
+let scenarioPanelDirty = true;
 const RESOURCE_LIST = ['wood','stone','food','sand','glass','tools','knowledge'];
 const resourceRateTracker = {
     windowSeconds: 60,
@@ -222,21 +224,92 @@ function saveGame() {
 function loadGame() {
     const savedGame = localStorage.getItem('humanitySurvivalSave');
     if (savedGame) {
-        gameState = JSON.parse(savedGame);
-        if (!gameState.environment) gameState.environment = [];
-        if (!gameState.floatingTexts) gameState.floatingTexts = [];
+        const loadedState = JSON.parse(savedGame);
+        
+        const defaultState = {
+            resources: {...GAME_CONFIG.initialResources},
+            buildings: [],
+            environment: [],
+            floatingTexts: [],
+            population: 0,
+            unemployedWorkers: 0,
+            populationCap: 0,
+            happiness: 100,
+            buildMode: null,
+            selectedBuilding: null,
+            unlockedTechs: [],
+            currentScenarioIndex: 0,
+            currentObjectiveIndex: 0,
+            scenarioComplete: false,
+            activeEvent: null,
+            nextEventTime: 0,
+            tips: {
+                foodIntro: false,
+                buildFarmHint: false,
+                unemployedHint: false,
+                assignWorkerHint: false,
+                housingCapHint: false,
+                upgradeHint: false,
+            }
+        };
+
+        gameState = {
+            ...defaultState,
+            ...loadedState,
+            resources: {
+                ...defaultState.resources,
+                ...(loadedState.resources || {})
+            },
+            tips: {
+                ...defaultState.tips,
+                ...(loadedState.tips || {})
+            }
+        };
+        
         scenarios.forEach((scenario, sIndex) => {
             scenario.objectives.forEach((obj, oIndex) => {
-                if (sIndex < gameState.currentScenarioIndex || (sIndex === gameState.currentScenarioIndex && oIndex < gameState.currentObjectiveIndex)) {
-                    obj.completed = true;
-                } else {
-                    obj.completed = false;
-                }
+                obj.completed = sIndex < gameState.currentScenarioIndex || (sIndex === gameState.currentScenarioIndex && oIndex < gameState.currentObjectiveIndex);
             });
         });
+
+
     } else {
-        generateEnvironment();
+        initNewGame();
     }
+}
+
+function initNewGame() {
+    gameState = {
+        resources: {...GAME_CONFIG.initialResources},
+        buildings: [],
+        environment: [],
+        floatingTexts: [],
+        population: 0,
+        unemployedWorkers: 0,
+        populationCap: 0,
+        happiness: 100,
+        buildMode: null,
+        selectedBuilding: null,
+        unlockedTechs: [],
+        currentScenarioIndex: 0,
+        currentObjectiveIndex: 0,
+        scenarioComplete: false,
+        activeEvent: null,
+        nextEventTime: 0,
+        tips: {
+            foodIntro: false,
+            buildFarmHint: false,
+            unemployedHint: false,
+            assignWorkerHint: false,
+            housingCapHint: false,
+            upgradeHint: false,
+        }
+    };
+    generateEnvironment();
+    RESOURCE_LIST.forEach(r => {
+        resourceRateTracker.lastValues[r] = gameState.resources[r] || 0;
+        resourceRateTracker.perSecondDeltas[r] = [];
+    });
 }
 
 function updateScenario() {
@@ -303,10 +376,7 @@ function updateFloatingTexts() {
         ft.duration--;
     });
 }
-function update() {
-    updateScenario();
-    evaluateContextualTips();
-
+function updateHappiness() {
     let baseHappiness = GAME_CONFIG.happiness.base;
     let happinessFactors = 0;
     happinessFactors += (gameState.resources.food > 0) ? GAME_CONFIG.happiness.foodBonus : GAME_CONFIG.happiness.foodPenalty;
@@ -321,10 +391,20 @@ function update() {
     if (targetHappiness > 100) targetHappiness = 100;
     if (targetHappiness < 0) targetHappiness = 0;
     gameState.happiness += (targetHappiness - gameState.happiness) * GAME_CONFIG.rates.happinessChangeSpeed;
+}
 
-    let happinessModifier = 1;
-    if (gameState.happiness > GAME_CONFIG.happiness.highHappinessThreshold) happinessModifier = GAME_CONFIG.happiness.highHappinessModifier;
-    if (gameState.happiness < GAME_CONFIG.happiness.lowHappinessThreshold) happinessModifier = GAME_CONFIG.happiness.lowHappinessModifier;
+function getHappinessModifier() {
+    if (gameState.happiness > GAME_CONFIG.happiness.highHappinessThreshold) {
+        return GAME_CONFIG.happiness.highHappinessModifier;
+    }
+    if (gameState.happiness < GAME_CONFIG.happiness.lowHappinessThreshold) {
+        return GAME_CONFIG.happiness.lowHappinessModifier;
+    }
+    return 1;
+}
+
+function updateProduction() {
+    const happinessModifier = getHappinessModifier();
 
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
@@ -365,6 +445,9 @@ function update() {
                         }
                         const finalProduction = productionRate * building.workersAssigned * happinessModifier * productionModifier;
                         gameState.resources[resource] += finalProduction;
+                        if (resource === 'knowledge') {
+                            researchPanelDirty = true;
+                        }
                         if (finalProduction > 0 && Math.random() < 0.05) {
                              createFloatingText(`+${(finalProduction * 60).toFixed(2)}`, building.x + building.width / 2, building.y);
                         }
@@ -373,7 +456,9 @@ function update() {
             }
         }
     }
+}
 
+function updatePopulation() {
     if (gameState.population > 0) {
         const foodConsumed = gameState.population * GAME_CONFIG.rates.foodConsumption;
         gameState.resources.food -= foodConsumed;
@@ -383,14 +468,6 @@ function update() {
         }
     }
 
-    let newPopCap = 0;
-    for (const building of gameState.buildings) {
-        if (buildingBlueprints[building.type].providesCap) {
-            newPopCap += buildingBlueprints[building.type].providesCap;
-        }
-    }
-    gameState.populationCap = newPopCap;
-
     if (gameState.population < gameState.populationCap) {
         const growthChance = (gameState.population === 0) ? GAME_CONFIG.rates.initialPopulationGrowthChance : GAME_CONFIG.rates.populationGrowthChance;
         if (Math.random() < growthChance) {
@@ -398,6 +475,27 @@ function update() {
             gameState.unemployedWorkers++;
         }
     }
+}
+
+function updatePopulationCap() {
+    let newPopCap = 0;
+    for (const building of gameState.buildings) {
+        if (buildingBlueprints[building.type].providesCap) {
+            newPopCap += buildingBlueprints[building.type].providesCap;
+        }
+    }
+    gameState.populationCap = newPopCap;
+}
+
+function update() {
+    updateScenario();
+    evaluateContextualTips();
+    
+    updateHappiness();
+    updateProduction();
+    updatePopulationCap();
+    updatePopulation();
+
     updateFloatingTexts();
 }
 
@@ -417,7 +515,17 @@ function findLowestSupportY(x, width) {
     }
     return highestY;
 }
-
+function isAreaOccupied(x, y, width, height) {
+    for (const building of gameState.buildings) {
+        if (x < building.x + building.width &&
+            x + width > building.x &&
+            y < building.y + building.height &&
+            y + height > building.y) {
+            return true;
+        }
+    }
+    return false;
+}
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
@@ -480,18 +588,24 @@ function draw() {
         if (blueprint) {
             const previewX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
             const supportY = findLowestSupportY(previewX, blueprint.width);
-            const previewY = Math.floor(mousePos.y / GRID_SIZE) * GRID_SIZE;
+            const previewY = supportY - blueprint.height;
+            const occupied = isAreaOccupied(previewX, previewY, blueprint.width, blueprint.height);
+
             ctx.save();
             ctx.globalAlpha = 0.6;
-            if (blueprint.img && blueprint.img.complete && blueprint.img.naturalWidth !== 0) {
-                ctx.drawImage(blueprint.img, previewX, previewY, blueprint.width, blueprint.height);
-            } else {
-                ctx.fillStyle = blueprint.color || '#ffffff';
+            if (occupied) {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
                 ctx.fillRect(previewX, previewY, blueprint.width, blueprint.height);
+            } else {
+                if (isImageReady(blueprint)) {
+                    ctx.drawImage(blueprint.img, previewX, previewY, blueprint.width, blueprint.height);
+                } else {
+                    ctx.fillStyle = blueprint.color || '#ffffff';
+                    ctx.fillRect(previewX, previewY, blueprint.width, blueprint.height);
+                }
             }
             ctx.restore();
         }
-        ctx.globalAlpha = 0.5;
     }
 
     for (const ft of gameState.floatingTexts) {
@@ -520,11 +634,11 @@ function gameLoop(timestamp) {
         }
         updateEvents(timestamp);
         sampleResourceRates(timestamp);
-        refreshUI();
         lastUpdateTime += logicTicks * UPDATE_INTERVAL;
     }
 
     draw();
+    refreshUI();
     requestAnimationFrame(gameLoop);
 }
 
@@ -561,6 +675,10 @@ function placeBuilding() {
         costModifier = gameState.activeEvent.modifier.multiplier;
     }
 
+    const snappedX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
+    const supportY = findLowestSupportY(snappedX, blueprint.width);
+    const snappedY = supportY - blueprint.height;
+
     let canAfford = true;
     for (const resource in blueprint.cost) {
         if (gameState.resources[resource] < blueprint.cost[resource] * costModifier) {
@@ -570,30 +688,32 @@ function placeBuilding() {
         }
     }
 
-    if (canAfford) {
-        for (const resource in blueprint.cost) {
-            gameState.resources[resource] -= blueprint.cost[resource] * costModifier;
-        }
-
-    const snappedX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
-    const supportY = findLowestSupportY(snappedX, blueprint.width);
-    const snappedY = Math.floor(mousePos.y / GRID_SIZE) * GRID_SIZE;
-
-        const newBuilding = {
-            id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2)),
-            type: gameState.buildMode,
-            x: snappedX,
-            y: snappedY,
-            width: blueprint.width,
-            height: blueprint.height,
-            color: blueprint.color,
-            workersAssigned: 0,
-        };
-        gameState.buildings.push(newBuilding);
-        
-        gameState.buildMode = null;
-        canvas.classList.remove('build-cursor');
+    if (!canAfford) {
+        return;
     }
+
+    if (isAreaOccupied(snappedX, snappedY, blueprint.width, blueprint.height)) {
+        showMessage("Cannot build here, area is occupied.", 2000);
+        return;
+    }
+
+    for (const resource in blueprint.cost) {
+        gameState.resources[resource] -= blueprint.cost[resource] * costModifier;
+    }
+
+    const newBuilding = {
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2)),
+        type: gameState.buildMode,
+        x: snappedX,
+        y: snappedY,
+        width: blueprint.width,
+        height: blueprint.height,
+        color: blueprint.color,
+        workersAssigned: 0,
+    };
+    gameState.buildings.push(newBuilding);
+    gameState.buildMode = null;
+    canvas.classList.remove('build-cursor');
 }
 
 function getBuildingAt(x, y) {
@@ -665,8 +785,14 @@ function refreshUI() {
         populateBuildMenu();
         buildMenuDirty = false;
     }
-    populateResearchPanel();
-    populateScenarioPanel();
+    if (researchPanelDirty) {
+        populateResearchPanel();
+        researchPanelDirty = false;
+    }
+    if (scenarioPanelDirty) {
+        populateScenarioPanel();
+        scenarioPanelDirty = false;
+    }
     if (!selectedBuildingInfo.classList.contains('hidden') && gameState.selectedBuilding) {
         openUpgradePanel(gameState.selectedBuilding, true); 
         updateDemolishTooltip(gameState.selectedBuilding); 
@@ -997,6 +1123,7 @@ function populateResearchPanel() {
                     buildingBlueprints[buildingId].locked = false;
                 });
                 buildMenuDirty = true;
+                researchPanelDirty = true;
                 refreshUI();
             }
         });
@@ -1014,10 +1141,22 @@ function openTab(tabName) {
     document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`).classList.add('active');
 }
 function harvestFeature(feature) {
+    if (feature.beingHarvested) {
+        showMessage("This area is already being cleared.");
+        return;
+    }
+    if (gameState.unemployedWorkers < 1) {
+        showMessage("No unemployed workers available to clear the area.");
+        return;
+    }
     if (gameState.unemployedWorkers < 1) {
         showMessage("No unemployed workers available");
         return;
     }
+    gameState.unemployedWorkers--;
+    feature.beingHarvested = true;
+    const harvestTime = 3000;
+    createFloatingText('Clearing...', feature.x + feature.width / 2, feature.y, '#ffff00')
     let resourceType = '';
     let resourceAmount = 0;
     if (feature.type === 'forest') {
