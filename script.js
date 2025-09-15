@@ -235,6 +235,7 @@ function loadGame() {
             });
         });
     } else {
+        generateEnvironment();
     }
 }
 
@@ -436,8 +437,10 @@ function draw() {
 
     ctx.fillStyle = '#228B22';
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
-
-
+    for (const feature of gameState.environment) {
+        ctx.fillStyle = feature.color;
+        ctx.fillRect(feature.x, feature.y, feature.width, feature.height);
+    }
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
         if (building === gameState.selectedBuilding) {
@@ -537,12 +540,18 @@ canvas.addEventListener('click', () => {
         placeBuilding();
         return;
     }
-    gameState.selectedBuilding = getBuildingAt(mousePos.x, mousePos.y);
-    if (gameState.selectedBuilding) {
+    const clickedBuilding = getBuildingAt(mousePos.x, mousePos.y);
+    if (clickedBuilding) {
+        gameState.selectedBuilding = clickedBuilding;
         openUpgradePanel(gameState.selectedBuilding);
-    } else {
-        hideUpgradePanel();
+        return;
     }
+    const clickedFeature = getEnvironmentFeatureAt(mousePos.x, mousePos.y);
+    if (clickedFeature) {
+        harvestFeature(clickedFeature);
+        return;
+    }
+    hideUpgradePanel();
 });
 
 function placeBuilding() {
@@ -1004,8 +1013,53 @@ function openTab(tabName) {
     tabButtons.forEach(button => button.classList.remove('active'));
     document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`).classList.add('active');
 }
+function harvestFeature(feature) {
+    if (gameState.unemployedWorkers < 1) {
+        showMessage("No unemployed workers available");
+        return;
+    }
+    let resourceType = '';
+    let resourceAmount = 0;
+    if (feature.type === 'forest') {
+        resourceType = 'wood';
+        resourceAmount = 50 + Math.floor(Math.random() * 50);
+    } else if (feature.type === 'stone_deposit') {
+        resourceType = 'stone';
+        resourceAmount = 40 + Math.floor(Math.random() * 40);
+    }
+    if (resourceType) {
+        gameState.resources[resourceType] += resourceAmount;
+        createFloatingText(`+${resourceAmount}`, feature.x + feature.width / 2, feature.y, '#67e8f9');
+        const index = gameState.environment.indexOf(feature);
+        if (index > -1){
+            gameState.environment.splice(index, 1);
+        }
+        showMessage(`Cleared ${feature.type.replace('_', ' ')} for ${resourceAmount} ${resourceType}.`, 2500)
+    }
+}
+function getEnvironmentFeatureAt(x, y) {
+    for (let i = gameState.environment.length - 1; i >= 0; i--) {
+        const feature = gameState.environment[i];
+        if (x > feature.x && x < feature.x + feature.width &&
+            y > feature.y && y < feature.y + feature.height) {
+            return feature;
+        }
+    }
+    return null;
+}
 function generateEnvironment() {
     gameState.environment = [];
+    const groundY = canvas.height - 50;
+    for (let i = 0; i < 5; i++) {
+        const x = Math.random() * (canvas.width - 200);
+        const width = 100 + Math.random() * 100;
+        gameState.environment.push({type: 'forest', x, y: groundY - 20, width, height: 20, color: '#006400'});
+    }
+    for (let i = 0; i < 3; i++) {
+        const x = Math.random() * (canvas.width - 150);
+        const width = 80 + Math.random() * 70;
+        gameState.environment.push({type: 'stone_deposit', x, y: groundY - 15, width, height: 15, color: '#8d8d8d'});
+    }
 }
 
 function init() {
