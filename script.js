@@ -402,7 +402,7 @@ function updateHappiness() {
         if (blueprint.adjacency && blueprint.adjacency.to === 'happiness') {
             const neighbors = getAdjacentBuildings(building, blueprint.adjacency.range);
             for (const neighbor of neighbors) {
-                const targetTypes = Array.isArray(blueprint.adjacency.range);
+                const targetTypes = Array.isArray(blueprint.adjacency.from) ? blueprint.adjacency.from : [blueprint.adjacency.from];
                 if (targetTypes.includes(neighbor.type)) {
                     buildingsProvidingHappiness.set(neighbor, (buildingsProvidingHappiness.get(neighbor) || 0) + blueprint.adjacency.bonus);
                 }
@@ -431,6 +431,13 @@ function getHappinessModifier() {
         return GAME_CONFIG.happiness.lowHappinessModifier;
     }
     return 1;
+}
+
+function getEventModifier(type) {
+    if (gameState.activeEvent?.modifier?.type === type) {
+        return gameState.activeEvent.modifier.multiplier;
+    }
+    return 1.0;
 }
 
 function updateProduction() {
@@ -518,7 +525,7 @@ function updatePopulation() {
     if (gameState.population > 0) {
         const foodConsumed = gameState.population * GAME_CONFIG.rates.foodConsumption;
         gameState.resources.food -= foodConsumed;
-
+        gameState.productionRates.food -= foodConsumed;
         if (gameState.resources.food < 0) {
             gameState.resources.food = 0;
         }
