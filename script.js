@@ -490,12 +490,10 @@ function updatePopulationCap() {
 function update() {
     updateScenario();
     evaluateContextualTips();
-    
     updateHappiness();
     updateProduction();
     updatePopulationCap();
     updatePopulation();
-
     updateFloatingTexts();
 }
 
@@ -1074,7 +1072,7 @@ function populateWorkerPanel() {
                 building.workersAssigned--;
                 gameState.unemployedWorkers++;
                 statusSpan.textContent = `${building.workersAssigned}/${blueprint.workersRequired}`;
-                refreshUI();
+                updateUIDisplays();
             }
         };
 
@@ -1088,7 +1086,7 @@ function populateWorkerPanel() {
                 building.workersAssigned++;
                 gameState.unemployedWorkers--;
                 statusSpan.textContent = `${building.workersAssigned}/${blueprint.workersRequired}`;
-                refreshUI();
+                updateUIDisplays();
             }
         };
 
@@ -1149,32 +1147,39 @@ function harvestFeature(feature) {
         showMessage("No unemployed workers available to clear the area.");
         return;
     }
-    if (gameState.unemployedWorkers < 1) {
-        showMessage("No unemployed workers available");
-        return;
-    }
+
     gameState.unemployedWorkers--;
-    feature.beingHarvested = true;
     const harvestTime = 3000;
-    createFloatingText('Clearing...', feature.x + feature.width / 2, feature.y, '#ffff00')
-    let resourceType = '';
-    let resourceAmount = 0;
-    if (feature.type === 'forest') {
-        resourceType = 'wood';
-        resourceAmount = 50 + Math.floor(Math.random() * 50);
-    } else if (feature.type === 'stone_deposit') {
-        resourceType = 'stone';
-        resourceAmount = 40 + Math.floor(Math.random() * 40);
-    }
-    if (resourceType) {
-        gameState.resources[resourceType] += resourceAmount;
-        createFloatingText(`+${resourceAmount}`, feature.x + feature.width / 2, feature.y, '#67e8f9');
-        const index = gameState.environment.indexOf(feature);
-        if (index > -1){
-            gameState.environment.splice(index, 1);
+    feature.beingHarvested = true; 
+
+    const harvestTime = 3000; // 3 seconds
+    createFloatingText('Clearing...', feature.x + feature.width / 2, feature.y, '#ffff00');
+
+    setTimeout(() => {
+        let resourceType = '';
+        let resourceAmount = 0;
+        if (feature.type === 'forest') {
+            resourceType = 'wood';
+            resourceAmount = 50 + Math.floor(Math.random() * 50);
+        } else if (feature.type === 'stone_deposit') {
+            resourceType = 'stone';
+            resourceAmount = 40 + Math.floor(Math.random() * 40);
         }
-        showMessage(`Cleared ${feature.type.replace('_', ' ')} for ${resourceAmount} ${resourceType}.`, 2500)
-    }
+
+        if (resourceType) {
+            gameState.resources[resourceType] += resourceAmount;
+            createFloatingText(`+${resourceAmount}`, feature.x + feature.width / 2, feature.y, '#67e8f9');
+            const index = gameState.environment.indexOf(feature);
+            if (index > -1){
+                gameState.environment.splice(index, 1);
+            }
+            showMessage(`Cleared ${feature.type.replace('_', ' ')} for ${resourceAmount} ${resourceType}.`, 2500);
+        }
+        
+        gameState.unemployedWorkers++;
+        // No need to set feature.beingHarvested = false, as the feature is removed.
+
+    }, harvestTime);
 }
 function getEnvironmentFeatureAt(x, y) {
     for (let i = gameState.environment.length - 1; i >= 0; i--) {
