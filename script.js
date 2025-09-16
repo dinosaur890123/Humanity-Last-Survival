@@ -377,7 +377,7 @@ function updateFloatingTexts() {
     });
 }
 function getAdjacentBuildings() {
-    const adjacent = 
+    const adjacent = [];
 }
 function updateHappiness() {
     let baseHappiness = GAME_CONFIG.happiness.base;
