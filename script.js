@@ -771,6 +771,8 @@ function placeBuilding() {
     gameState.buildings.push(newBuilding);
     gameState.buildMode = null;
     canvas.classList.remove('build-cursor');
+    updateUIDisplays();
+    populateBuildMenu();
 }
 
 function getBuildingAt(x, y) {
@@ -982,7 +984,9 @@ function performUpgrade() {
     gameState.buildings[idx] = upgraded;
     gameState.selectedBuilding = upgraded;
     showMessage('Upgraded to ' + newBlueprint.name + '!', 3000);
-    refreshUI();
+    populateBuildMenu();
+    populateResearchPanel();
+    updateUIDisplays();
     openUpgradePanel(upgraded, true);
 }
 function performDemolish() {
@@ -1007,7 +1011,9 @@ function performDemolish() {
     gameState.selectedBuilding = null;
     hideUpgradePanel();
     showMessage('Building demolished.', 2000);
-    refreshUI();
+    populateBuildMenu();
+    populateResearchPanel();
+    updateUIDisplays();
 }
 function populateScenarioPanel() {
     const currentScenario = scenarios[gameState.currentScenarioIndex];
