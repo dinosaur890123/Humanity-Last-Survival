@@ -376,6 +376,9 @@ function updateFloatingTexts() {
         ft.duration--;
     });
 }
+function getAdjacentBuildings() {
+    const adjacent = 
+}
 function updateHappiness() {
     let baseHappiness = GAME_CONFIG.happiness.base;
     let happinessFactors = 0;
@@ -1089,11 +1092,9 @@ function populateWorkerPanel() {
                 updateUIDisplays();
             }
         };
-
         controlsDiv.appendChild(removeBtn);
         controlsDiv.appendChild(statusSpan);
         controlsDiv.appendChild(addBtn);
-
         li.appendChild(nameSpan);
         li.appendChild(controlsDiv);
         workerAssignmentsList.appendChild(li);
@@ -1149,10 +1150,9 @@ function harvestFeature(feature) {
     }
 
     gameState.unemployedWorkers--;
-    const harvestTime = 3000;
     feature.beingHarvested = true; 
 
-    const harvestTime = 3000; // 3 seconds
+    const harvestTime = 3000; 
     createFloatingText('Clearing...', feature.x + feature.width / 2, feature.y, '#ffff00');
 
     setTimeout(() => {
@@ -1177,7 +1177,6 @@ function harvestFeature(feature) {
         }
         
         gameState.unemployedWorkers++;
-        // No need to set feature.beingHarvested = false, as the feature is removed.
 
     }, harvestTime);
 }
