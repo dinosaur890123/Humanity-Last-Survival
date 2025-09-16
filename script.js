@@ -252,18 +252,14 @@ function loadGame() {
                 upgradeHint: false,
             }
         };
-
-        gameState = {
-            ...defaultState,
-            ...loadedState,
-            resources: {
-                ...defaultState.resources,
-                ...(loadedState.resources || {})
-            },
-            tips: {
-                ...defaultState.tips,
-                ...(loadedState.tips || {})
-            }
+        Object.assign(gameState, defaultState, loadedState);
+        gameState.resources = {
+            ...defaultState.resources,
+            ...(loadedState.resources || {})
+        };
+        gameState.tips = {
+            ...defaultState.tips,
+            ...(loadedState.tips || {})
         };
         
         scenarios.forEach((scenario, sIndex) => {
@@ -854,10 +850,6 @@ function refreshUI() {
         populateScenarioPanel();
         scenarioPanelDirty = false;
     }
-    if (!selectedBuildingInfo.classList.contains('hidden') && gameState.selectedBuilding) {
-        openUpgradePanel(gameState.selectedBuilding, true); 
-        updateDemolishTooltip(gameState.selectedBuilding); 
-    }
     pulseManageWorkersIfNeeded();
 }
 
@@ -972,13 +964,20 @@ function performUpgrade() {
     const idx = gameState.buildings.indexOf(old);
     if (idx === -1) return;
     const newBlueprint = buildingBlueprints[nextType];
+    const oldWorkers = old.workersAssigned || 0;
+    const newMaxWorkers = newBlueprint.workersRequired || 0;
+    const newAssignedWorkers = Math.min(oldWorkers, newMaxWorkers);
+    const returnedWorkers = oldWorkers - newAssignedWorkers;
+    if (returnedWorkers > 0) {
+        gameState.unemployedWorkers += returnedWorkers;
+    }
     const upgraded = {
         ...old,
         type: nextType,
         width: newBlueprint.width,
         height: newBlueprint.height,
         color: newBlueprint.color,
-        workersAssigned: Math.min(old.workersAssigned || 0, newBlueprint.workersRequired || 0)
+        workersAssigned: newAssignedWorkers
     };
     gameState.buildings[idx] = upgraded;
     gameState.selectedBuilding = upgraded;
@@ -1136,6 +1135,9 @@ function populateWorkerPanel() {
                 gameState.unemployedWorkers++;
                 statusSpan.textContent = `${building.workersAssigned}/${blueprint.workersRequired}`;
                 updateUIDisplays();
+                if (building === gameState.selectedBuilding) {
+                openUpgradePanel(building, true);
+            }
             }
         };
 
@@ -1150,6 +1152,9 @@ function populateWorkerPanel() {
                 gameState.unemployedWorkers--;
                 statusSpan.textContent = `${building.workersAssigned}/${blueprint.workersRequired}`;
                 updateUIDisplays();
+                if (building === gameState.selectedBuilding) {
+                openUpgradePanel(building, true);
+            }
             }
         };
         controlsDiv.appendChild(removeBtn);
