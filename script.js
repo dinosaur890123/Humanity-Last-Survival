@@ -1151,7 +1151,6 @@ function harvestFeature(feature) {
 
     gameState.unemployedWorkers--;
     feature.beingHarvested = true; 
-
     const harvestTime = 3000; 
     createFloatingText('Clearing...', feature.x + feature.width / 2, feature.y, '#ffff00');
 
