@@ -12,6 +12,7 @@ const populationCapElement = document.getElementById('population-cap');
 const unemployedWorkersElement = document.getElementById('unemployed-workers-count');
 const happinessElement = document.getElementById('happiness-count');
 const buildMenuElement = document.getElementById('build-menu');
+const eventDescription = document.getElementById('event-description');
 const researchPanelElement = document.getElementById('research-panel');
 const messageBoxElement = document.getElementById('message-box');
 const scenarioTitleElement = document.getElementById('scenario-title');
@@ -29,8 +30,11 @@ const closeStatsPanelButton = document.getElementById('close-stats-panel-button'
 const newGameButton = document.getElementById('settings-new-game-button');
 const eventBar = document.getElementById('event-notification-bar');
 const eventTitle = document.getElementById('event-title');
-const eventDescription = document.getElementById('event-description');
 const eventProgressBar = document.getElementById('event-progress-bar');
+const eventChoiceModal = document.getElementById('event-choice-modal');
+const eventChoiceTitle = document.getElementById('event-choice-title');
+const eventDescription = document.getElementById('event-description');
+const eventChoiceDescription = document.getElementById('event-choice-description');
 const selectedBuildingInfo = document.getElementById('selected-building-info');
 const upgradeCurrentName = document.getElementById('upgrade-current-name');
 const upgradeCurrentImage = document.getElementById('upgrade-current-image');
@@ -307,10 +311,37 @@ function initNewGame() {
         resourceRateTracker.perSecondDeltas[r] = [];
     });
 }
-
+function showEventChoiceModal(event) {
+    eventChoiceTitle.textContent = event.title;
+    eventChoiceDescription.textContent = event.description;
+    eventChoicesList.innerHTML = '';
+    event.choices.forEach(choice => {
+        const canAfford = Object.entries(choice.cost || {}).every(([resource, amount]) => gameState.resources[resource] >= amount);
+        const costString = Object.entries(choice.cost || {}).map(([r,a]) => `${a} ${r}`).join(', ');
+        const button = document.createElement('button');
+        button.className = 'event-choice-button';
+        button.disabled = !canAfford;
+        let buttonHTML = `<span>${choice.text}</span>`;
+        if (costString) {
+            buttonHTML += `<small>Cost: ${costString}</small>`;
+        }
+        button.innerHTML = buttonHTML;
+        button.onclick = () => {
+            Object.entries(choice.cost || {}).forEach(([resource, amount]) => {
+                gameState.resources[resource] -= amount;
+            });
+            if (choice.effect) {
+                choice.effect();
+            }
+            eventChoiceModal.classList.add('hidden');
+            gameState.activeEvent = null; 
+        };
+        eventChoicesList.appendChild(button);
+    });
+    eventChoiceModal.classList.remove('hidden');
+}
 function updateScenario() {
     if (gameState.scenarioComplete) return;
-
     const currentScenario = scenarios[gameState.currentScenarioIndex];
     const currentObjective = currentScenario.objectives[gameState.currentObjectiveIndex];
 
@@ -342,23 +373,34 @@ function updateEvents(timestamp) {
     if (timestamp >= gameState.nextEventTime && !gameState.activeEvent) {
         const event = randomEvents[Math.floor(Math.random() * randomEvents.length)];
         gameState.activeEvent = { ...event, startTime: timestamp };
+        const nextEventDelay = (event.duration || 0) + GAME_CONFIG.timers.eventIntervalMin + Math.random() * GAME_CONFIG.timers.eventIntervalRandom;
+        gameState.nextEventTime = timestamp + nextEventDelay;
+        eventBar.classList.remove('hidden');
+            if (event.effect) {
+                event.effect();
+            }
+        if (event.type === 'choice') {
+            showEventChoiceModal(event);
+        } else {
+            eventTitle.textContent = event.title;
+            eventDescription.textContent = event.description;
+        }
         eventBar.classList.remove('hidden');
         eventTitle.textContent = event.title;
         eventDescription.textContent = event.description;
         if (event.effect) event.effect();
         gameState.nextEventTime = 0;
     }
-
-    if (gameState.activeEvent) {
+    if (gameState.activeEvent && gameState.activeEvent.type !== 'choice') {
         const elapsed = timestamp - gameState.activeEvent.startTime;
         const progress = 1 - (elapsed / gameState.activeEvent.duration);
         eventProgressBar.style.width = `${progress * 100}%`;
-
         if (elapsed >= gameState.activeEvent.duration) {
             gameState.activeEvent = null;
             eventBar.classList.add('hidden');
         }
     }
+
 }
 
 function createFloatingText(text, x, y, color = '#ffffff') {

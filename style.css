@@ -447,3 +447,43 @@ canvas {
 .rate.pos { color:#4ade80; }
 .rate.neg { color:#f87171; }
 .rate.neu { color:#9ca3af;}
+#event-choice-modal .modal-content {
+    max-width: 550px;
+}
+
+#event-choice-description {
+    margin-bottom: 1.5rem;
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+#event-choices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.event-choice-button {
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background-color: #374151;
+    border-radius: 0.5rem;
+    border: 1px solid #4b5563;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+.event-choice-button:hover {
+    background-color: #4b5563;
+    border-color: #67e8f9;
+}
+.event-choice-button:disabled {
+    background-color: #1f2937;
+    color: #6b7280;
+    cursor: not-allowed;
+    border-color: #374151;
+}
+.event-choice-button small {
+    color: #9ca3af;
+    display: block;
+    margin-top: 0.25rem;
+}

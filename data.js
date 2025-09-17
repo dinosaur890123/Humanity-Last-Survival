@@ -12,7 +12,7 @@ const buildingBlueprints = {
         color: '#f59e0b',
         imgSrc: 'assets/granary.png',
     },
-    'woodcutter': {name: 'Woodcutter', category: 'Resources', cost: {wood: 20}, width: 60, height: 60, color: '#8b4513', produces: { wood: 0.02 }, workersRequired: 1, imgSrc: 'assets/woodcutter.png' },
+    'woodcutter': {name: 'Woodcutter', category: 'Resources', cost: {wood: 20}, width: 60, height: 60, color: '#8b4513', produces: { wood: 0.03 }, workersRequired: 1, imgSrc: 'assets/woodcutter.png' },
     'quarry': {name: 'Quarry', category: 'Resources', cost: {wood: 15, stone: 15}, width: 60, height: 60, color: '#a9a9a9', produces: { stone: 0.015 }, workersRequired: 2, imgSrc: 'assets/quarry.png', consumes: { tools: 0.001 }},
     'sand_pit': {name: 'Sand Pit', category: 'Resources', cost: {wood: 25, stone: 10}, width: 60, height: 60, color: '#eab308', produces: { sand: 0.02 }, workersRequired: 2, imgSrc: 'assets/sand_pit.png'},
     'sawmill': {
@@ -87,6 +87,44 @@ const scenarios = [
 ];
 
 const randomEvents = [
+    {
+        id: 'refugees',
+        title: 'Refugee group arrives',
+        description: 'A tired and hungry group of survivors has arrived, pleading for help. What should we do?',
+        type: 'choice',
+        choices: [
+            {
+                text: 'Welcome them into the settlement.',
+                cost: {food: 50},
+                effect: () => {
+                    const newPop = Math.min(5, gameState.populationCap - gameState.population);
+                    if (newPop > 0) {
+                        gameState.population += newPop;
+                        gameState.unemployedWorkers += newPop;
+                        showMessage(`Gained ${newPop} new citizens.`, 4000);
+                    } else {
+                        showMessage('You welcomed them, but had no housing space!', 4000);
+                    }
+                }
+            },
+            {
+                text: 'Give them supplies and send them on.',
+                cost: {food: 25, wood: 25},
+                effect: () => {
+                    showMessage('You helped the refugees on their journey.', 4000);
+                    gameState.happiness += 5;
+                }
+            },
+            {
+                text: 'Turn them away',
+                cost: {},
+                effect: () => {
+                    gameState.happiness -= 10;
+                    showMessage('Your people are unhappy with the cruel decision.', 4000);
+                }
+            }
+        ]
+    },
     { id: 'harvest', title: 'Bountiful Harvest!', description: 'Farm production +50%', duration: 60000, modifier: { building: 'farm', type: 'produces', resource: 'food', multiplier: 1.5 } },
     { id: 'immigration', title: 'Immigration Boom!', description: '+5 population', duration: 1000, effect: () => { 
         const newPop = Math.min(5, gameState.populationCap - gameState.population);
