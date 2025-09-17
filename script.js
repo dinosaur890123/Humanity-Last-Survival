@@ -12,7 +12,6 @@ const populationCapElement = document.getElementById('population-cap');
 const unemployedWorkersElement = document.getElementById('unemployed-workers-count');
 const happinessElement = document.getElementById('happiness-count');
 const buildMenuElement = document.getElementById('build-menu');
-const eventDescription = document.getElementById('event-description');
 const researchPanelElement = document.getElementById('research-panel');
 const messageBoxElement = document.getElementById('message-box');
 const scenarioTitleElement = document.getElementById('scenario-title');
