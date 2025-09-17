@@ -541,7 +541,6 @@ function updateProduction() {
                         const finalProduction = baseProductionRate * building.workersAssigned * happinessModifier * currentProductionModifier * productionModifier * adjacencyMultiplier;
                         gameState.resources[resource] += finalProduction;
                         if (resource === 'knowledge') {
-                            researchPanelDirty = true;
                         }
                         if (finalProduction > 0 && Math.random() < 0.05) {
                              createFloatingText(`+${(finalProduction * 60).toFixed(2)}`, building.x + building.width / 2, building.y);
