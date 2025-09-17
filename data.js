@@ -19,7 +19,7 @@ const buildingBlueprints = {
         name: 'Sawmill', 
         category: 'Industry', 
         cost: {wood: 80, stone: 40}, 
-        width: 60, height: 60, 
+        width: 60, height: 60,
         color: '#800000', 
         produces: { wood: 0.08 }, 
         workersRequired: 3, 
