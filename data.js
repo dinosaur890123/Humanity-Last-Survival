@@ -36,6 +36,44 @@ const buildingBlueprints = {
     'glassworks': {name: 'Glassworks', category: 'Industry', cost: {wood: 50, stone: 30}, width: 60, height: 60, color: '#06b6d4', consumes: { sand: 0.02, wood: 0.01, tools: 0.002 }, produces: { glass: 0.01 }, workersRequired: 3, imgSrc: 'assets/glassworks.png', locked: true },
     'toolsmith': {name: 'Toolsmith', category: 'Industry', cost: {wood: 40, stone: 40}, width: 60, height: 60, color: '#f97316', consumes: { wood: 0.01, stone: 0.01 }, produces: { tools: 0.01 }, workersRequired: 2, imgSrc: 'assets/toolsmith.png'},
     'research_lab': {name: 'Research Lab', category: 'Industry', cost: {wood: 100, stone: 50}, width: 60, height: 60, color: '#a78bfa', produces: { knowledge: 0.02 }, workersRequired: 4, imgSrc: 'assets/research_lab.png'},
+    'arcology': {
+        name: 'Arcology',
+        category: 'Special',
+        cost: {wood: 500, stone: 500, glass: 250},
+        width: 120, height: 120, 
+        color: '#2dd4bf',
+        providesCap: 200,
+        providesHappiness: 20,
+        imgSrc: 'assets/arcology.png', 
+        locked: true
+    },
+    'geothermal_plant': {
+        name: 'Geothermal Plant',
+        category: 'Special',
+        cost: {stone: 400, tools: 150, glass: 100},
+        width: 60, height: 60,
+        color: '#f97316',
+        workersRequired: 8,
+        imgSrc: 'assets/geothermal_plant.png',
+        locked: true,
+        globalModifier: {
+            type: 'produces',
+            multiplier: 1.10
+        }
+    },
+    'victory-project': {
+        name: 'Global Seed Vault',
+        category: 'Special',
+        cost: {wood: 5000, stone: 5000, glass: 500, tools: 500, food: 2000},
+        width: 180, height: 180,
+        color: '#a855f7',
+        imgSrc: 'assets/victory_project.png',
+        locked: true,
+        globalModifier: { 
+            happiness: 25, 
+            foodConsumption: 0.75
+        }
+    },
     'park': { 
         name: 'Park',
         category: 'Life', 
@@ -63,6 +101,9 @@ const researchTree = {
     'advanced_woodcutting': { name: 'Advanced Woodcutting', cost: 50, unlocks: ['sawmill'] },
     'glass_blowing': { name: 'Glass Blowing', cost: 100, unlocks: ['glassworks', 'apartment'] },
     'urban_planning': { name: 'Urban Planning', cost: 250, unlocks: ['skyscraper'] },
+    'advanced_engineering': { name: 'Advanced Engineering', cost: 500, unlocks: ['geothermal_plant'], requires: ['urban_planning'] },
+    'arcology_design': { name: 'Arcology Design', cost: 1000, unlocks: ['arcology'], requires: ['advanced_engineering'] },
+    'preservation_protocol': { name: 'Preservation protocol', cost: 2500, unlocks: ['victory_project'], requires: ['arcology_design'] }
 };
 
 const scenarios = [

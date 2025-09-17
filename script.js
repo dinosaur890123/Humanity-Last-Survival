@@ -423,28 +423,25 @@ function getAdjacentBuildings(building, range) {
     }
     return adjacent;
 }
-function updateHappiness() {
+function updateHappiness(delta) {
     let baseHappiness = GAME_CONFIG.happiness.base;
     let happinessFactors = 0;
+    happinessFactors += gameState.globalHappinessBonus || 0;
     happinessFactors += (gameState.resources.food > 0) ? GAME_CONFIG.happiness.foodBonus : GAME_CONFIG.happiness.foodPenalty;
     happinessFactors -= gameState.unemployedWorkers * GAME_CONFIG.happiness.unemployedPenalty;
     const buildingsProvidingHappiness = new Map();
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
+        if (blueprint.providesHappiness) {
+            buildingsProvidingHappiness.set(building.type, blueprint.providesHappiness);
+        }
         if (blueprint.adjacency && blueprint.adjacency.to === 'happiness') {
             const neighbors = getAdjacentBuildings(building, blueprint.adjacency.range);
             for (const neighbor of neighbors) {
-                const targetTypes = Array.isArray(blueprint.adjacency.from) ? blueprint.adjacency.from : [blueprint.adjacency.from];
-                if (targetTypes.includes(neighbor.type)) {
-                    buildingsProvidingHappiness.set(neighbor, (buildingsProvidingHappiness.get(neighbor) || 0) + blueprint.adjacency.bonus);
+                if (blueprint.adjacency.from.includes(neighbor.type)) {
+                    happinessFactors += blueprint.adjacency.bonus;
                 }
             }
-        }
-    }
-    for(const building of gameState.buildings) {
-        const blueprint = buildingBlueprints[building.type];
-        if (blueprint.providesHappiness) {
-            buildingsProvidingHappiness.set(building, (buildingsProvidingHappiness.get(building) || 0) + blueprint.providesHappiness);
         }
     }
     for (const bonus of buildingsProvidingHappiness.values()) {
@@ -453,7 +450,7 @@ function updateHappiness() {
     let targetHappiness = baseHappiness + happinessFactors;
     if (targetHappiness > 100) targetHappiness = 100;
     if (targetHappiness < 0) targetHappiness = 0;
-    gameState.happiness += (targetHappiness - gameState.happiness) * GAME_CONFIG.rates.happinessChangeSpeed;
+    gameState.happiness += (targetHappiness - gameState.happiness) * GAME_CONFIG.rates.happinessChangeSpeed * delta;
 }
 
 function getHappinessModifier() {
@@ -472,19 +469,36 @@ function getEventModifier(type) {
     return 1.0;
 }
 
-function updateProduction() {
+function updateProduction(delta) {
     const happinessModifier = getHappinessModifier();
-    const productionModifier = getEventModifier('produces');
-    const costModifier = getEventModifier('cost');
-    if (!gameState.productionRates) gameState.productionRates = {};
-    RESOURCE_LIST.forEach(r => gameState.productionRates[r] = 0);
+    const eventProductionModifier = getEventModifier('produces');
+    const eventCostModifier = getEventModifier('cost');
+    let globalProductionModifier = 1.0;
+    let globalFoodConsumptionModifier = 1.0;
+    gameState.globalHappinessBonus = 0;
+    gameState.buildings.forEach(building => {
+        const blueprint = buildingBlueprints[building.type];
+        if (blueprint.globalModifier) {
+            const isPowered = !blueprint.workersRequired || building.workersAssigned >= blueprint.workersRequired;
+            if (isPowered) {
+                if (blueprint.globalModifier.type === 'produces') {
+                    globalProductionModifier *= blueprint.globalModifier.multiplier;
+                }
+                if (blueprint.globalModifier.happiness) {
+                    gameState.globalHappinessBonus += blueprint.globalModifier.happiness;
+                }
+                if (blueprint.globalModifier.foodConsumption) {
+                    globalFoodConsumptionModifier *= blueprint.globalModifier.foodConsumption;
+                }
+            }
+        }
+    });
     const adjacencyMultipliers = new Map();
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
-        if (!blueprint.adjacency || blueprint.adjacency.to === 'happiness') {
-            continue;
-        }
-        let bonusMultiplier = 1.0; 
+        if (!blueprint.adjacency || blueprint.adjacency.to === 'happiness') continue;
+        
+        let bonusMultiplier = 1.0;
         const fromTypes = Array.isArray(blueprint.adjacency.from) ? blueprint.adjacency.from : [blueprint.adjacency.from];
         const neighbors = getAdjacentBuildings(building, blueprint.adjacency.range);
 
@@ -495,32 +509,30 @@ function updateProduction() {
         }
 
         if (bonusMultiplier > 1.0) {
-            const resourceToBoost = blueprint.adjacency.to;
-            const bonusMap = new Map();
-            bonusMap.set(resourceToBoost, bonusMultiplier);
-            adjacencyMultipliers.set(building, bonusMap);
+            adjacencyMultipliers.set(building, { resource: blueprint.adjacency.to, multiplier: bonusMultiplier });
         }
     }
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
-        building.needsTools = false; 
+        building.needsTools = false;
 
         if (building.workersAssigned > 0) {
             let currentProductionModifier = 1.0;
             let canProduce = true;
+            if (blueprint.consumes?.tools && gameState.resources.tools < (blueprint.consumes.tools * building.workersAssigned * delta)) {
+                currentProductionModifier = GAME_CONFIG.production.noToolsModifier;
+                building.needsTools = true;
+            }
+
             if (blueprint.consumes) {
-                if (blueprint.consumes.tools && gameState.resources.tools < blueprint.consumes.tools * building.workersAssigned) {
-                    currentProductionModifier = GAME_CONFIG.production.noToolsModifier;
-                    building.needsTools = true;
-                }
                 for (const resource in blueprint.consumes) {
-                    if (resource !== 'tools' && gameState.resources[resource] < blueprint.consumes[resource] * building.workersAssigned) {
-                        canProduce = false; 
+                    if (resource !== 'tools' && gameState.resources[resource] < (blueprint.consumes[resource] * building.workersAssigned * delta)) {
+                        canProduce = false;
                         break;
                     }
                 }
             }
-            
+
             if (canProduce) {
                 if (blueprint.consumes) {
                     for (const resource in blueprint.consumes) {
@@ -528,43 +540,39 @@ function updateProduction() {
                         if (gameState.activeEvent?.modifier?.type === 'consumes' && gameState.activeEvent.modifier.resource === resource) {
                             consumptionRate *= gameState.activeEvent.modifier.multiplier;
                         }
-                        gameState.resources[resource] -= consumptionRate * costModifier;
+                        gameState.resources[resource] -= consumptionRate * eventCostModifier * delta;
                     }
                 }
                 if (blueprint.produces) {
                     for (const resource in blueprint.produces) {
                         let baseProductionRate = blueprint.produces[resource];
                         let adjacencyMultiplier = 1.0;
-                        if (adjacencyMultipliers.has(building) && adjacencyMultipliers.get(building).has(resource)) {
-                            adjacencyMultiplier = adjacencyMultipliers.get(building).get(resource);
+                        const adjBonus = adjacencyMultipliers.get(building);
+                        if (adjBonus && adjBonus.resource === resource) {
+                            adjacencyMultiplier = adjBonus.multiplier;
                         }
-                        const finalProduction = baseProductionRate * building.workersAssigned * happinessModifier * currentProductionModifier * productionModifier * adjacencyMultiplier;
-                        gameState.resources[resource] += finalProduction;
-                        if (resource === 'knowledge') {
-                        }
+                        const finalProduction = baseProductionRate * building.workersAssigned * happinessModifier * currentProductionModifier * eventProductionModifier * adjacencyMultiplier * globalProductionModifier;
+                        gameState.resources[resource] += finalProduction * delta;
                         if (finalProduction > 0 && Math.random() < 0.05) {
-                             createFloatingText(`+${(finalProduction * 60).toFixed(2)}`, building.x + building.width / 2, building.y);
+                            createFloatingText(`+${(finalProduction * 60).toFixed(2)}`, building.x + building.width / 2, building.y);
                         }
                     }
                 }
             }
         }
     }
-}
-
-function updatePopulation() {
     if (gameState.population > 0) {
-        const foodConsumed = gameState.population * GAME_CONFIG.rates.foodConsumption;
+        const foodConsumed = gameState.population * GAME_CONFIG.rates.foodConsumption * globalFoodConsumptionModifier * delta;
         gameState.resources.food -= foodConsumed;
-        gameState.productionRates.food -= foodConsumed;
         if (gameState.resources.food < 0) {
             gameState.resources.food = 0;
         }
     }
-
-    if (gameState.population < gameState.populationCap) {
+}
+function updatePopulation(delta) {
+    if (gameState.population < gameState.populationCap && gameState.resources.food > 0) {
         const growthChance = (gameState.population === 0) ? GAME_CONFIG.rates.initialPopulationGrowthChance : GAME_CONFIG.rates.populationGrowthChance;
-        if (Math.random() < growthChance) {
+        if (Math.random() < growthChance * delta) {
             gameState.population++;
             gameState.unemployedWorkers++;
         }
@@ -581,13 +589,13 @@ function updatePopulationCap() {
     gameState.populationCap = newPopCap;
 }
 
-function update() {
+function update(delta) {
     updateScenario();
     evaluateContextualTips();
-    updateHappiness();
-    updateProduction();
+    updateProduction(delta);
+    updateHappiness(delta);
     updatePopulationCap();
-    updatePopulation();
+    updatePopulation(delta);
     updateFloatingTexts();
 }
 
@@ -721,9 +729,12 @@ function gameLoop(timestamp) {
 
     if (deltaTime >= UPDATE_INTERVAL) {
         const logicTicks = Math.floor(deltaTime / UPDATE_INTERVAL);
+        const deltaInSeconds = UPDATE_INTERVAL / 1000.0;
+
         for (let i = 0; i < logicTicks; i++) {
-            update();
+            update(deltaInSeconds);
         }
+        
         updateEvents(timestamp);
         sampleResourceRates(timestamp);
         lastUpdateTime += logicTicks * UPDATE_INTERVAL;
@@ -735,7 +746,7 @@ function gameLoop(timestamp) {
 }
 
 const mousePos = { x: null, y: null };
-canvas.addEventListener('mousemove', (e) => {
+canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
     mousePos.x = e.clientX - rect.left;
     mousePos.y = e.clientY - rect.top;
