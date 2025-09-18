@@ -158,6 +158,7 @@ gameState.tips = {
     assignWorkerHint: false,
     housingCapHint: false,
     upgradeHint: false,
+    saveWoodForCutterHint: false,
 }
 function evaluateContextualTips() {
     if (!gameState.tips.foodIntro && gameState.resources.food < GAME_CONFIG.initialResources.food) {
@@ -311,6 +312,22 @@ function initNewGame() {
         resourceRateTracker.perSecondDeltas[r] = [];
     });
 }
+function getDefaultMeta() {
+    return JSON.parse(JSON.stringify(DEFAULT_META));
+}
+function getMetaMultipliers() {
+    const u = (gameState.meta?.upgrades) || DEFAULT_META.upgrades;
+    const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+    return {
+        production: 1 + 0.15 * clamp(u.productionBoost, 0, PRESTIGE_DEFS.productionBoost.max),
+        costReduction: Math.max(0.4, 1 - 0.03 * clamp(u.frugalBuilders, 0, PRESTIGE_DEFS.frugalBuilders.max)),
+        happinessBonus: 2 * clamp(u.happyHearts, 0, PRESTIGE_DEFS.happyHearts.max),
+        knowledgeProduction: 1 + 0.25 * clamp(u.quickStudies, 0, PRESTIGE_DEFS.quickStudies.max),
+        growthRate: 1 + 0.20 * clamp(u.growthSpurt, 0, PRESTIGE_DEFS.growthSpurt.max),
+        startingResourcesMult: 1 + 0.50 * clamp(u.startingKit, 0, PRESTIGE_DEFS.startingKit.max),
+    };
+}
+
 function showEventChoiceModal(event) {
     eventChoiceTitle.textContent = event.title;
     eventChoiceDescription.textContent = event.description;
