@@ -1280,7 +1280,7 @@ function populateBuildMenu() {
         categories[blueprint.category].push({type, ...blueprint});
     }
 
-    const categoryOrder = ['Housing', 'Food', 'Resources', 'Industry', 'Life'];
+    const categoryOrder = ['Housing', 'Food', 'Resources', 'Industry', 'Life', 'Special'];
 
     for (const categoryName of categoryOrder) {
         if (!categories[categoryName]) continue;
