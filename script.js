@@ -95,6 +95,8 @@ function updateUIDisplays() {
     if (populationCapElement) populationCapElement.textContent = gameState.populationCap;
     if (unemployedWorkersElement) unemployedWorkersElement.textContent = gameState.unemployedWorkers;
     if (happinessElement) happinessElement.textContent = Math.floor(gameState.happiness);
+    const ppEl = document.getElementById('prestige-count');
+    if (ppEl) ppEl.textContent = gameState.meta?.prestigePoints ?? 0;
     updateResourceRateUI();
 }
 function sampleResourceRates(now) {
@@ -255,6 +257,7 @@ function loadGame() {
                 assignWorkerHint: false,
                 housingCapHint: false,
                 upgradeHint: false,
+                saveWoodForCutterHint: false,
             }
         };
         Object.assign(gameState, defaultState, loadedState);
@@ -265,6 +268,14 @@ function loadGame() {
         gameState.tips = {
             ...defaultState.tips,
             ...(loadedState.tips || {})
+        };
+        gameState.meta = {
+            ...getDefaultMeta(),
+            ...(loadedState.meta || {})
+        };
+        gameState.meta.upgrades = {
+            ...DEFAULT_META.upgrades,
+            ...(gameState.meta.upgrades || {})
         };
         
         scenarios.forEach((scenario, sIndex) => {
@@ -280,6 +291,7 @@ function loadGame() {
 }
 
 function initNewGame() {
+    const preservedMeta = gameState?.meta ? JSON.parse(JSON.stringify(gameState.meta)) : getDefaultMeta();
     gameState = {
         resources: {...GAME_CONFIG.initialResources},
         buildings: [],
@@ -304,8 +316,22 @@ function initNewGame() {
             assignWorkerHint: false,
             housingCapHint: false,
             upgradeHint: false,
-        }
+            saveWoodForCutterHint: false,
+        },
+        meta: preservedMeta
     };
+    gameState.meta = {
+        ...getDefaultMeta(),
+        ...(gameState.meta || {})
+    };
+    gameState.meta.upgrades = {
+        ...DEFAULT_META.upgrades,
+        ...(gameState.meta.upgrades || {})
+    };
+    const startMult = getMetaMultipliers().startingResourcesMult;
+    RESOURCE_LIST.forEach(r => {
+        gameState.resources[r] = Math.floor((gameState.resources[r] || 0) * startMult);
+    });
     generateEnvironment();
     RESOURCE_LIST.forEach(r => {
         resourceRateTracker.lastValues[r] = gameState.resources[r] || 0;
@@ -327,7 +353,110 @@ function getMetaMultipliers() {
         startingResourcesMult: 1 + 0.50 * clamp(u.startingKit, 0, PRESTIGE_DEFS.startingKit.max),
     };
 }
-
+function calculatePrestigeGains() {
+    const meta = gameState.meta || getDefaultMeta();
+    const knowledgeScore = Math.sqrt((meta.totalKnowledgeEarned || 0) / 25);
+    const popScore = Math.sqrt(Math.max(meta.totalPopulationEver, gameState.population)) / 2;
+    const builtScore = (meta.totalBuildingsBuilt || 0) / 50;
+    const hasVictory = gameState.buildings.some(b => b.type === 'victory-project');
+    const milestoneScore = hasVictory ? 25 : 0;
+    const total = Math.floor(knowledgeScore + popScore + builtScore + milestoneScore);
+    return Math.max(0, total);
+}
+function doPrestige() {
+    const gains = calculatePrestigeGains();
+    if (gains <= 0) {
+        showMessage('Not enough progress to prestige yet.', 3000);
+        return;
+    }
+    const confirmMsg = `Prestige will reset your current run but grant ${gains} Prestige Points.\nPermanent upgrades persist across runs.\nProceed?`;
+    if (!confirm(confirmMsg)) return;
+    if (!gameState.meta) gameState.meta = getDefaultMeta();
+    gameState.meta.prestigePoints += gains;
+    gameState.meta.totalPrestiges += 1;
+    const preservedMeta = JSON.parse(JSON.stringify(gameState.meta));
+    localStorage.removeItem('humanitySurvivalSave');
+    initNewGame();
+    gameState.meta = preservedMeta;
+    saveGame();
+    showMessage(`Prestiged! Gained ${gains} Prestige Points.`, 4000);
+    buildMenuDirty = true;
+    researchPanelDirty = true;
+    scenarioPanelDirty = true;
+    refreshUI();
+}
+function openPrestigePanel() {
+    let modal = document.getElementById('prestige-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'prestige-modal';
+        modal.className = 'modal';
+        modal.style.inset = '0';
+         modal.style.position = 'fixed';
+        modal.style.background = 'rgba(0,0,0,0.55)';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.innerHTML = `
+        <div style="background:#1f2937;color:#fff;padding:16px;max-width:680px;width:95%;border-radius:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <h2 style="margin:0">Prestige & Meta Upgrades</h2>
+                <button id="prestige-close" title="Close">✕</button>
+            </div>
+            <div id="prestige-summary" style="margin-bottom:8px"></div>
+            <div id="prestige-upgrades" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:50vh;overflow:auto"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+                <button id="prestige-now" class="danger">Prestige Now</button>
+                <small id="prestige-tip" style="opacity:.8"></small>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+        modal.querySelector('#prestige-close').onclick = () => modal.remove();
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+        modal.querySelector('#prestige-now').onclick = () => {
+            doPrestige();
+            modal.remove();
+        };
+    }
+    const gains = calculatePrestigeGains();
+    const pts = (gameState.meta?.prestigePoints) || 0;
+    modal.querySelector('#prestige-summary').innerHTML = `
+        <div><strong>Current Prestige points:</strong> ${pts}</div>
+        <div><strong>Prestige now to gain:</strong> +${gains}</div>
+    `;
+    modal.querySelector('#prestige-tip').textContent = 'Tip: Build, research, grow population, and complete milestones to earn more points.';
+    const container = modal.querySelector('#prestige-upgrades');
+    container.innerHTML = '';
+    const meta = gameState.meta || getDefaultMeta();
+    const points = meta.prestigePoints;
+    Object.entries(PRESTIGE_DEFS).forEach(([key, def]) => {
+        const level = meta.upgrades[key] || 0;
+        const atMax = level >= def.max;
+        const canBuy = points >= def.cost && !atMax;
+        const card = document.createElement('div');
+        card.style.border = '1px solid #374151';
+        card.style.borderRadius = '6px';
+        card.style.padding = '8px';
+        card.innerHTML = `
+        <div style="font-weight:600;margin-bottom:4px">${def.name}</div>
+            <div style="font-size:12px;opacity:.9;margin-bottom:6px">${def.desc}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+            <small>Level: ${level}/${def.max}</small>
+            <button ${canBuy ? '' : 'disabled'} data-upgrade="${key}">Buy (-${def.cost})</button>
+        </div>`;
+        const btn = card.querySelector('button');
+        btn.onclick = () => {
+            if (!gameState.meta) gameState.meta = getDefaultMeta();
+            if (gameState.meta.prestigePoints < def.cost || gameState.meta.upgrades[key] >= def.max) return;
+            gameState.meta.prestigePoints -= def.cost;
+            gameState.meta.upgrades[key] += 1;
+            saveGame();
+            openPrestigePanel();
+            showMessage(`Purchased ${def.name}`, 2500);
+        };
+        container.appendChild(card);
+    })
+}
 function showEventChoiceModal(event) {
     eventChoiceTitle.textContent = event.title;
     eventChoiceDescription.textContent = event.description;
@@ -464,6 +593,7 @@ function updateHappiness(delta) {
     for (const bonus of buildingsProvidingHappiness.values()) {
         happinessFactors += bonus;
     }
+    happinessFactors += getMetaMultipliers().happinessBonus;
     let targetHappiness = baseHappiness + happinessFactors;
     if (targetHappiness > 100) targetHappiness = 100;
     if (targetHappiness < 0) targetHappiness = 0;
@@ -493,6 +623,7 @@ function updateProduction(delta) {
     let globalProductionModifier = 1.0;
     let globalFoodConsumptionModifier = 1.0;
     gameState.globalHappinessBonus = 0;
+    const metaMul = getMetaMultipliers();
     gameState.buildings.forEach(building => {
         const blueprint = buildingBlueprints[building.type];
         if (blueprint.globalModifier) {
@@ -568,8 +699,14 @@ function updateProduction(delta) {
                         if (adjBonus && adjBonus.resource === resource) {
                             adjacencyMultiplier = adjBonus.multiplier;
                         }
-                        const finalProduction = baseProductionRate * building.workersAssigned * happinessModifier * currentProductionModifier * eventProductionModifier * adjacencyMultiplier * globalProductionModifier;
+                        let prestigeProd = metaMul.production;
+                        if (resource === 'knowledge') prestigeProd *= metaMul.knowledgeProduction;
+                        const finalProduction = baseProductionRate * building.workersAssigned * happinessModifier * currentProductionModifier * eventProductionModifier * adjacencyMultiplier * globalProductionModifier * prestigeProd;
                         gameState.resources[resource] += finalProduction * delta;
+                        if (resource === 'knowledge') {
+                            if (!gameState.meta) gameState.meta = getDefaultMeta();
+                            gameState.meta.totalKnowledgeEarned = (gameState.meta.totalKnowledgeEarned || 0) + (finalProduction * delta);
+                        }
                         if (finalProduction > 0 && Math.random() < 0.05) {
                             createFloatingText(`+${(finalProduction * 60).toFixed(2)}`, building.x + building.width / 2, building.y);
                         }
@@ -588,10 +725,14 @@ function updateProduction(delta) {
 }
 function updatePopulation(delta) {
     if (gameState.population < gameState.populationCap && gameState.resources.food > 0) {
-        const growthChance = (gameState.population === 0) ? GAME_CONFIG.rates.initialPopulationGrowthChance : GAME_CONFIG.rates.populationGrowthChance;
+        const metaMul = getMetaMultipliers();
+        const growthChanceBase = (gameState.population === 0) ? GAME_CONFIG.rates.initialPopulationGrowthChance : GAME_CONFIG.rates.populationGrowthChance;
+        const growthChance = growthChanceBase * metaMul.growthRate;
         if (Math.random() < growthChance * delta) {
             gameState.population++;
             gameState.unemployedWorkers++;
+            if (!gameState.meta) gameState.meta = getDefaultMeta();
+            gameState.meta.totalPopulationEver = (gameState.meta.totalPopulationEver || 0) + 1;
         }
     }
 }
@@ -794,11 +935,10 @@ function placeBuilding() {
     if (gameState.activeEvent?.modifier?.type === 'cost') {
         costModifier = gameState.activeEvent.modifier.multiplier;
     }
-
+    costModifier *= getMetaMultipliers().costReduction;
     const snappedX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
     const supportY = findLowestSupportY(snappedX, blueprint.width);
     const snappedY = supportY - blueprint.height;
-
     let canAfford = true;
     for (const resource in blueprint.cost) {
         if (gameState.resources[resource] < blueprint.cost[resource] * costModifier) {
@@ -832,6 +972,8 @@ function placeBuilding() {
         workersAssigned: 0,
     };
     gameState.buildings.push(newBuilding);
+    if (!gameState.meta) gameState.meta = getDefaultMeta();
+    gameState.meta.totalBuildingsBuilt = (gameState.meta.totalBuildingsBuilt || 0) + 1;
     gameState.buildMode = null;
     canvas.classList.remove('build-cursor');
     updateUIDisplays();
@@ -886,7 +1028,16 @@ function setupEventListeners() {
             window.location.reload();
         }
     });
-
+    if (newGameButton && !document.getElementById('settings-prestige-button')) {
+        const prestigeBtn = document.createElement('button');
+        prestigeBtn.id = 'settings-prestige-button';
+        prestigeBtn.textContent = 'Prestige';
+        prestigeBtn.title = 'Reset run for permanent points & upgrades';
+        prestigeBtn.style.marginLeft = '8px';
+        prestigeBtn.addEventListener('click', openPrestigePanel);
+        newGameButton.parentElement?.appendChild(prestigeBtn);
+    }
+    document.getElementById('prestige-indicator')?.addEventListener('click', openPrestigePanel);
     upgradeCloseButton?.addEventListener('click', hideUpgradePanel);
     upgradeButton?.addEventListener('click', performUpgrade);
     demolishButton?.addEventListener('click', performDemolish);
@@ -962,7 +1113,11 @@ function openUpgradePanel(building, isRefresh = false) {
             if (nextBlueprint.workersRequired) addStat(upgradeNextBenefits, `Workers: ${nextBlueprint.workersRequired}`);
         }
         const discountedCost = {};
-        for (const r in nextBlueprint.cost) discountedCost[r] = Math.ceil(nextBlueprint.cost[r] * UPGRADE_COST_MULTIPLIER);
+        const prestigeCostReduction = getMetaMultipliers().costReduction;
+        for (const r in nextBlueprint.cost) {
+            const base = nextBlueprint.cost[r] * (typeof UPGRADE_COST_MULTIPLIER !== 'undefined' ? UPGRADE_COST_MULTIPLIER : 1);
+            discountedCost[r] = Math.ceil(base * prestigeCostReduction);
+        }
         if (upgradeCosts) upgradeCosts.innerHTML = Object.entries(discountedCost).map(([r,v]) => `<span>${r}: ${v}</span>`).join('');
         let reqText = '';
         if (nextBlueprint.locked && !gameState.unlockedTechs.some(t => (researchTree[t]?.unlocks||[]).includes(nextType))) {
