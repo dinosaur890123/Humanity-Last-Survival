@@ -83,6 +83,17 @@ RESOURCE_LIST.forEach(r => {
     resourceRateTracker.lastValues[r] = gameState.resources[r] || 0;
     resourceRateTracker.perSecondDeltas[r] = [];
 })
+function getPrestigeTooltip() {
+    const mul = getMetaMultipliers();
+    const pts = gameState.meta?.prestigePoints ?? 0;
+    const prod = Math.round((mul.production - 1) * 100);
+    const know = Math.round((mul.knowledgeProduction - 1) * 100);
+    const cost = Math.round((1 - mul.costReduction) * 100);
+    const happy = Math.round(mul.happinessBonus);
+    const growth = Math.round((mul.growthRate - 1) * 100);
+    const start = Math.round((mul.startingResourcesMult - 1) * 100);
+    return `Prestige Points: ${pts}\nProduction: +${prod}%\nKnowledge: +${know}%\nCosts: -${cost}%\nHappiness: +${happy}\nGrowth: +${growth}%\nStarting resources: +${start}%\nClick to open`;
+}
 function updateUIDisplays() {
     if (woodCountElement) woodCountElement.textContent = Math.floor(gameState.resources.wood);
     if (stoneCountElement) stoneCountElement.textContent = Math.floor(gameState.resources.stone);
@@ -97,6 +108,8 @@ function updateUIDisplays() {
     if (happinessElement) happinessElement.textContent = Math.floor(gameState.happiness);
     const ppEl = document.getElementById('prestige-count');
     if (ppEl) ppEl.textContent = gameState.meta?.prestigePoints ?? 0;
+    const ppWrap = document.getElementById('prestige-indicator');
+    if (ppWrap) ppWrap.title = getPrestigeTooltip();
     updateResourceRateUI();
 }
 function sampleResourceRates(now) {
@@ -392,7 +405,7 @@ function openPrestigePanel() {
         modal.id = 'prestige-modal';
         modal.className = 'modal';
         modal.style.inset = '0';
-         modal.style.position = 'fixed';
+        modal.style.position = 'fixed';
         modal.style.background = 'rgba(0,0,0,0.55)';
         modal.style.display = 'flex';
         modal.style.alignItems = 'center';
