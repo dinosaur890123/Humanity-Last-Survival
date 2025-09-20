@@ -222,6 +222,12 @@ function pulseManageWorkersIfNeeded() {
     } else {
         openWorkerPanelButton.classList.remove('attention-pulse');
     }
+    if (!openWorkerPanelButton) return;
+    if (idle) {
+        openWorkerPanelButton.classList.add('attention-pulse');
+    } else {
+        openWorkerPanelButton.classList.remove('attention-pulse');
+    }
 }
 function loadImages() {
     for (const type in buildingBlueprints) {
@@ -527,8 +533,9 @@ function updateScenario() {
 function updateEvents(timestamp) {
     if (gameState.activeEvent && gameState.activeEvent.type !== 'choice') {
         const elapsed = timestamp - gameState.activeEvent.startTime;
-        const progress = 1 - (elapsed / gameState.activeEvent.duration);
-        eventProgressBar.style.width = `${progress * 100}%`;
+        const progress = (elapsed / gameState.activeEvent.duration);
+        const pct = Math.max(0, Math.min(100, progress * 100));
+        eventProgressBar.style.width = `${pct}%`;
         if (elapsed >= gameState.activeEvent.duration) {
             gameState.activeEvent = null;
             eventBar.classList.add('hidden');
@@ -588,29 +595,21 @@ function updateHappiness(delta) {
     happinessFactors += gameState.globalHappinessBonus || 0;
     happinessFactors += (gameState.resources.food > 0) ? GAME_CONFIG.happiness.foodBonus : GAME_CONFIG.happiness.foodPenalty;
     happinessFactors -= gameState.unemployedWorkers * GAME_CONFIG.happiness.unemployedPenalty;
-    const buildingsProvidingHappiness = new Map();
     for (const building of gameState.buildings) {
         const blueprint = buildingBlueprints[building.type];
+        if (!blueprint) continue;
         if (blueprint.providesHappiness) {
-            buildingsProvidingHappiness.set(building.type, blueprint.providesHappiness);
+            happinessFactors += blueprint.providesHappiness;
         }
         if (blueprint.adjacency && blueprint.adjacency.to === 'happiness') {
             const neighbors = getAdjacentBuildings(building, blueprint.adjacency.range);
+            const fromTypes = Array.isArray(blueprint.adjacency.from) ? blueprint.adjacency.from : [blueprint.adjacency.from];
             for (const neighbor of neighbors) {
-                if (blueprint.adjacency.from.includes(neighbor.type)) {
+                if (fromTypes.includes(neighbor.type)) {
                     happinessFactors += blueprint.adjacency.bonus;
                 }
             }
         }
-    }
-    for (const bonus of buildingsProvidingHappiness.values()) {
-        happinessFactors += bonus;
-    }
-    let buildingHappiness = 0;
-    for (const building of gameState.buildings) {
-        const blueprint = buildingBlueprints[building];
-        if (blueprint.providesHappiness) buildingHappiness += blueprint.providesHappiness;
-        
     }
     happinessFactors += getMetaMultipliers().happinessBonus;
     let targetHappiness = baseHappiness + happinessFactors;
@@ -699,7 +698,6 @@ function updateProduction(delta) {
                     }
                 }
             }
-
             if (canProduce) {
                 if (blueprint.consumes) {
                     for (const resource in blueprint.consumes) {
@@ -707,7 +705,13 @@ function updateProduction(delta) {
                         if (gameState.activeEvent?.modifier?.type === 'consumes' && gameState.activeEvent.modifier.resource === resource) {
                             consumptionRate *= gameState.activeEvent.modifier.multiplier;
                         }
-                        gameState.resources[resource] -= consumptionRate * eventCostModifier * delta;
+                        const amountToConsume = consumptionRate * eventCostModifier * delta;
+                        if (resource === 'tools') {
+                            const actual = Math.min(gameState.resources.tools, amountToConsume);
+                            gameState.resources.tools -= actual;
+                        } else {
+                            gameState.resources[resource] -= amountToConsume;
+                        }
                     }
                 }
                 if (blueprint.produces) {
@@ -1025,8 +1029,7 @@ function setupEventListeners() {
             canvas.classList.remove('build-cursor');
             showMessage('Build cancelled.', 1500);
         }
-    })
-
+    });
     canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         if (gameState.buildMode) {
@@ -1141,9 +1144,10 @@ function openUpgradePanel(building, isRefresh = false) {
         }
         const discountedCost = {};
         const prestigeCostReduction = getMetaMultipliers().costReduction;
+        const eventCostMultiplier = (gameState.activeEvent?.modifier?.type === 'cost') ? gameState.activeEvent.modifier.multiplier : 1;
         for (const r in nextBlueprint.cost) {
             const base = nextBlueprint.cost[r] * (typeof UPGRADE_COST_MULTIPLIER !== 'undefined' ? UPGRADE_COST_MULTIPLIER : 1);
-            discountedCost[r] = Math.ceil(base * prestigeCostReduction);
+            ddiscountedCost[r] = Math.ceil(base * prestigeCostReduction * eventCostMultiplier);
         }
         if (upgradeCosts) upgradeCosts.innerHTML = Object.entries(discountedCost).map(([r,v]) => `<span>${r}: ${v}</span>`).join('');
         let reqText = '';
@@ -1249,13 +1253,13 @@ function performDemolish() {
     if (building.workersAssigned > 0) {
         gameState.unemployedWorkers += building.workersAssigned;
     }
-
     const idx = gameState.buildings.indexOf(building);
     if (idx !== -1) gameState.buildings.splice(idx, 1);
 
     gameState.selectedBuilding = null;
     hideUpgradePanel();
     showMessage('Building demolished.', 2000);
+    updatePopulationCap();
     populateBuildMenu();
     populateResearchPanel();
     updateUIDisplays();
