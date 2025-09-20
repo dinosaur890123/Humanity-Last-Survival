@@ -213,21 +213,12 @@ function evaluateContextualTips() {
     }
 }
 function pulseManageWorkersIfNeeded() {
+    if (!openWorkerPanelButton) return;
     const idle = gameState.buildings.find(b => {
         const bp = buildingBlueprints[b.type];
-        return bp.workersRequired && b.workersAssigned === 0;
+        return bp?.workersRequired && (b.workersAssigned || 0) === 0;
     });
-    if (idle) {
-    openWorkerPanelButton.classList.add('attention-pulse');
-    } else {
-        openWorkerPanelButton.classList.remove('attention-pulse');
-    }
-    if (!openWorkerPanelButton) return;
-    if (idle) {
-        openWorkerPanelButton.classList.add('attention-pulse');
-    } else {
-        openWorkerPanelButton.classList.remove('attention-pulse');
-    }
+    openWorkerPanelButton.classList.toggle('attention-pulse', !!idle);
 }
 function loadImages() {
     for (const type in buildingBlueprints) {
