@@ -606,6 +606,12 @@ function updateHappiness(delta) {
     for (const bonus of buildingsProvidingHappiness.values()) {
         happinessFactors += bonus;
     }
+    let buildingHappiness = 0;
+    for (const building of gameState.buildings) {
+        const blueprint = buildingBlueprints[building];
+        if (blueprint.providesHappiness) buildingHappiness += blueprint.providesHappiness;
+        
+    }
     happinessFactors += getMetaMultipliers().happinessBonus;
     let targetHappiness = baseHappiness + happinessFactors;
     if (targetHappiness > 100) targetHappiness = 100;
@@ -1013,6 +1019,13 @@ function setupEventListeners() {
             scenarioToggleIcon.style.transform = 'rotate(0deg)';
         }
     });
+    document.addEventListener('keydown', () => {
+        if (e.key === 'Escape' && gameState.buildMode) {
+            gameState.buildMode = null;
+            canvas.classList.remove('build-cursor');
+            showMessage('Build cancelled.', 1500);
+        }
+    })
 
     canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
@@ -1041,6 +1054,7 @@ function setupEventListeners() {
             window.location.reload();
         }
     });
+
     if (newGameButton && !document.getElementById('settings-prestige-button')) {
         const prestigeBtn = document.createElement('button');
         prestigeBtn.id = 'settings-prestige-button';
@@ -1513,7 +1527,6 @@ function init() {
     const mainRect = canvas.parentElement.getBoundingClientRect();
     canvas.width = mainRect.width;
     canvas.height = mainRect.height;
-    
     loadGame();
     loadImages();
     setupEventListeners();

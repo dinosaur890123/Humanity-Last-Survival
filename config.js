@@ -35,7 +35,7 @@ const GAME_CONFIG = {
         base: 50,
         foodBonus: 20,
         foodPenalty: -30,
-        unemployedPenalty: -2,
+        unemployedPenalty: 2,
         highHappinessThreshold: 70,
         lowHappinessThreshold: 30,
         highHappinessModifier: 1.1,
