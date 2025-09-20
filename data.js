@@ -103,7 +103,7 @@ const researchTree = {
     'urban_planning': { name: 'Urban Planning', cost: 250, unlocks: ['skyscraper'] },
     'advanced_engineering': { name: 'Advanced Engineering', cost: 500, unlocks: ['geothermal_plant'], requires: ['urban_planning'] },
     'arcology_design': { name: 'Arcology Design', cost: 1000, unlocks: ['arcology'], requires: ['advanced_engineering'] },
-    'preservation_protocol': { name: 'Preservation protocol', cost: 2500, unlocks: ['victory_project'], requires: ['arcology_design'] }
+    'preservation_protocol': { name: 'Preservation protocol', cost: 2500, unlocks: ['victory-project'], requires: ['arcology-design'] }
 };
 
 const scenarios = [

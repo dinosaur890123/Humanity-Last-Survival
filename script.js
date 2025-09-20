@@ -1402,20 +1402,23 @@ function populateWorkerPanel() {
         workerAssignmentsList.appendChild(li);
     });
 }
-
 function populateResearchPanel() {
     researchPanelElement.innerHTML = '';
     for (const techId in researchTree) {
         const tech = researchTree[techId];
         const button = document.createElement('button');
         const isUnlocked = gameState.unlockedTechs.includes(techId);
+        const requires = tech.requires || [];
+        const hasPrereqs = requires.every(id => gameState.unlockedTechs.includes(id));
         button.innerHTML = `${tech.name}<br><small>Cost: ${tech.cost} Knowledge</small>`;
-        button.disabled = isUnlocked || gameState.resources.knowledge < tech.cost;
-        
+        if (!hasPrereqs && requires.length) {
+            const reqNames = requires.map(id => researchTree[id]?.name || id).join(', ');
+            button.innerHTML += `<br><small>Requires: ${reqNames}</small>`;
+        }
         if (isUnlocked) {
             button.innerHTML += `<br><small>Researched</small>`;
         }
-
+        button.disabled = isUnlocked || !hasPrereqs || gameState.resources.knowledge < tech.cost;
         button.addEventListener('click', () => {
             if (gameState.resources.knowledge >= tech.cost) {
                 gameState.resources.knowledge -= tech.cost;
