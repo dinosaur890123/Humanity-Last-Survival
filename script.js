@@ -468,6 +468,7 @@ function openPrestigePanel() {
     })
 }
 function showEventChoiceModal(event) {
+    if (!eventChoiceModal || !eventChoiceTitle || !eventChoiceDescription || !eventChoicesList) return;
     eventChoiceTitle.textContent = event.title;
     eventChoiceDescription.textContent = event.description;
     eventChoicesList.innerHTML = '';
@@ -1016,14 +1017,6 @@ function setupEventListeners() {
             }
         })
     }
-    scenarioTitleElement.addEventListener('click', () => {
-        objectivesListElement.classList.toggle('collapsed');
-        if (objectivesListElement.classList.contains('collapsed')) {
-            scenarioToggleIcon.style.transform = 'rotate(-90deg)';
-        } else {
-            scenarioToggleIcon.style.transform = 'rotate(0deg)';
-        }
-    });
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && gameState.buildMode) {
             gameState.buildMode = null;
@@ -1039,20 +1032,20 @@ function setupEventListeners() {
             showMessage('Build cancelled.', 1500);
         }
     });
-    openWorkerPanelButton.addEventListener('click', () => {
-        workerPanelModal.classList.remove('hidden');
+    openWorkerPanelButton?.addEventListener('click', () => {
+        workerPanelModal?.classList.remove('hidden');
         populateWorkerPanel();
     });
 
-    closeWorkerPanelButton.addEventListener('click', () => {
-        workerPanelModal.classList.add('hidden');
+    closeWorkerPanelButton?.addEventListener('click', () => {
+        workerPanelModal?.classList.add('hidden');
     });
 
-    closeStatsPanelButton.addEventListener('click', () => {
-        statsPanelModal.classList.add('hidden');
+    closeStatsPanelButton?.addEventListener('click', () => {
+        statsPanelModal?.classList.add('hidden');
     });
     
-    newGameButton.addEventListener('click', () => {
+    newGameButton?.addEventListener('click', () => {
         if (confirm('Are you sure? Your current progress will be lost.')) {
             localStorage.removeItem('humanitySurvivalSave');
             window.location.reload();
@@ -1114,7 +1107,6 @@ function openUpgradePanel(building, isRefresh = false) {
 
     if (upgradeCurrentName) upgradeCurrentName.textContent = blueprint.name + (building.needsTools ? ' (Needs Tools)' : '');
     if (upgradeCurrentImage) upgradeCurrentImage.src = blueprint.imgSrc || '';
-    if (upgradeCurrentStats) upgradeCurrentStats.innerHTML = '';
     const addStat = (ul, text) => { const li = document.createElement('li'); li.textContent = text; ul.appendChild(li); };
     if (upgradeCurrentStats) {
         if (blueprint.providesCap) addStat(upgradeCurrentStats, `Housing: +${blueprint.providesCap}`);
@@ -1276,7 +1268,6 @@ function populateScenarioPanel() {
     } else {
         scenarioTitleElement.insertBefore(document.createTextNode(titleText), scenarioTitleElement.firstChild || null);
     }
-    scenarioTitleElement.firstChild.textContent = currentScenario.title + ' ';
     objectivesListElement.innerHTML = '';
     currentScenario.objectives.forEach((obj, index) => {
         const li = document.createElement('li');
