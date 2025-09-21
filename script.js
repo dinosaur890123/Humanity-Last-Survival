@@ -526,10 +526,10 @@ function updateEvents(timestamp) {
         const elapsed = timestamp - gameState.activeEvent.startTime;
         const progress = (elapsed / gameState.activeEvent.duration);
         const pct = Math.max(0, Math.min(100, progress * 100));
-        eventProgressBar.style.width = `${pct}%`;
+        eventProgressBar?.style && (eventProgressBar.style.width = `${pct}%`);
         if (elapsed >= gameState.activeEvent.duration) {
             gameState.activeEvent = null;
-            eventBar.classList.add('hidden');
+            eventBar?.classList.add('hidden');
         }
     }
     if (!gameState.nextEventTime) {
@@ -544,9 +544,9 @@ function updateEvents(timestamp) {
         if (event.type === 'choice') {
             showEventChoiceModal(event);
         } else {
-            eventTitle.textContent = event.title;
-            eventDescription.textContent = event.description;
-            eventBar.classList.remove('hidden');
+            if (eventTitle) eventTitle.textContent = event.title;
+            if (eventDescription) eventDescription.textContent = event.description;
+            eventBar?.classList.remove('hidden');
             if (event.effect) {
                 event.effect();
             }
@@ -1006,6 +1006,16 @@ function getBuildingAt(x, y) {
 }
 
 function setupEventListeners() {
+    if (scenarioTitleElement && objectivesListElement && scenarioToggleIcon) {
+        scenarioTitleElement.addEventListener('click', () => {
+            objectivesListElement.classList.toggle('collapsed');
+            if (objectivesListElement.classList.contains('collapsed')) {
+                scenarioToggleIcon.style.transform = 'rotate(-90deg)';
+            } else {
+                scenarioToggleIcon.style.transform = 'rotate(0deg)';
+            }
+        })
+    }
     scenarioTitleElement.addEventListener('click', () => {
         objectivesListElement.classList.toggle('collapsed');
         if (objectivesListElement.classList.contains('collapsed')) {
@@ -1014,7 +1024,7 @@ function setupEventListeners() {
             scenarioToggleIcon.style.transform = 'rotate(0deg)';
         }
     });
-    document.addEventListener('keydown', () => {
+    document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && gameState.buildMode) {
             gameState.buildMode = null;
             canvas.classList.remove('build-cursor');
@@ -1065,11 +1075,12 @@ function setupEventListeners() {
 }
 
 let messageTimeout;
-function showMessage(text, duration) {
-    messageBoxElement.textContent = text;
+function showMessage(text, duration = 2000) {
     clearTimeout(messageTimeout);
+    if (!messageBoxElement) return;
+    messageBoxElement.textContent = text;
     messageTimeout = setTimeout(() => {
-        messageBoxElement.textContent = '';
+        if (messageBoxElement) messageBoxElement.textContent = '';
     }, duration);
 }
 
@@ -1138,7 +1149,7 @@ function openUpgradePanel(building, isRefresh = false) {
         const eventCostMultiplier = (gameState.activeEvent?.modifier?.type === 'cost') ? gameState.activeEvent.modifier.multiplier : 1;
         for (const r in nextBlueprint.cost) {
             const base = nextBlueprint.cost[r] * (typeof UPGRADE_COST_MULTIPLIER !== 'undefined' ? UPGRADE_COST_MULTIPLIER : 1);
-            ddiscountedCost[r] = Math.ceil(base * prestigeCostReduction * eventCostMultiplier);
+            discountedCost[r] = Math.ceil(base * prestigeCostReduction * eventCostMultiplier);
         }
         if (upgradeCosts) upgradeCosts.innerHTML = Object.entries(discountedCost).map(([r,v]) => `<span>${r}: ${v}</span>`).join('');
         let reqText = '';
@@ -1257,8 +1268,14 @@ function performDemolish() {
 }
 function populateScenarioPanel() {
     const currentScenario = scenarios[gameState.currentScenarioIndex];
-    if (!currentScenario) return;
-
+    if (!currentScenario || !scenarioTitleElement || !objectivesListElement) return;
+    const tn = scenarioTitleElement.firstChild;
+    const titleText = currentScenario.title + ' ';
+    if (tn && tn.nodeType === Node.TEXT_NODE) {
+        tn.textContent = titleText;
+    } else {
+        scenarioTitleElement.insertBefore(document.createTextNode(titleText), scenarioTitleElement.firstChild || null);
+    }
     scenarioTitleElement.firstChild.textContent = currentScenario.title + ' ';
     objectivesListElement.innerHTML = '';
     currentScenario.objectives.forEach((obj, index) => {
@@ -1276,7 +1293,6 @@ function populateScenarioPanel() {
 function populateBuildMenu() {
     buildMenuElement.innerHTML = ''; 
     const categories = {};
-
     for (const type in buildingBlueprints) {
         const blueprint = buildingBlueprints[type];
         if (blueprint.locked && !gameState.unlockedTechs.some(techId => researchTree[techId]?.unlocks.includes(type))) {
@@ -1451,7 +1467,8 @@ function openTab(tabName) {
 
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach(button => button.classList.remove('active'));
-    document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`).classList.add('active');
+    const btn = document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`);
+    if (btn) btn.classList.add('active');
 }
 function harvestFeature(feature) {
     if (feature.beingHarvested) {
@@ -1467,7 +1484,6 @@ function harvestFeature(feature) {
     feature.beingHarvested = true; 
     const harvestTime = 3000; 
     createFloatingText('Clearing...', feature.x + feature.width / 2, feature.y, '#ffff00');
-
     setTimeout(() => {
         let resourceType = '';
         let resourceAmount = 0;
@@ -1488,9 +1504,7 @@ function harvestFeature(feature) {
             }
             showMessage(`Cleared ${feature.type.replace('_', ' ')} for ${resourceAmount} ${resourceType}.`, 2500);
         }
-        
         gameState.unemployedWorkers++;
-
     }, harvestTime);
 }
 function getEnvironmentFeatureAt(x, y) {
