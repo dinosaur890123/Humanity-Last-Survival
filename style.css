@@ -405,17 +405,22 @@ canvas {
     }
 }
 #tip-banner {
-    position: absolute;
-    top: 0;
-    right: 0;
-    max-width: 320px;
+    position: relative;
+    grid-column: 2 / 3;
+    justify-self: center;
+    top: auto;
+    right: auto;
+    width: min(90%, 680px);
+    max-width: 680px;
     background: rgba(34,197,94,0.12);
     border-left: 4px solid #22c55e;
-    padding: 0.6rem 0.75rem;
-    font-size: 0.8rem;
-    line-height: 1.25;
+    border: 1px solid rgba(148,163,184,0.25);
+    border-radius: 0.75rem;
+    padding: 0.9rem 1.1rem;
+    font-size: 1rem;
+    line-height: 1.35;
     color:#e2e8f0;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
     animation: tipFadeIn 0.25s ease;
     pointer-events: none;
     z-index: 150;
