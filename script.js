@@ -17,6 +17,7 @@ const messageBoxElement = document.getElementById('message-box');
 const scenarioTitleElement = document.getElementById('scenario-title');
 const objectivesListElement = document.getElementById('objectives-list');
 const scenarioToggleIcon = document.getElementById('scenario-toggle-icon');
+const scenarioPanelElement = document.getElementById('scenario-panel');
 const openWorkerPanelButton = document.getElementById('open-worker-panel-button');
 const workerPanelModal = document.getElementById('worker-panel-modal');
 const closeWorkerPanelButton = document.getElementById('close-worker-panel-button');
@@ -156,9 +157,12 @@ function showTip(text, kind = 'info', duration = 7000) {
     tipBanner.classList.remove('hidden','warning','danger');
     if (kind !== 'info') tipBanner.classList.add(kind);
     tipBanner.textContent = text;
+    scenarioPanelElement?.classList.add('hidden');
     clearTimeout(tipTimeoutId);
     tipTimeoutId = setTimeout(() => {
         tipBanner.classList.add('hidden');
+        tipBanner.classList.remove('warning', 'danger');
+        scenarioPanelElement?.classList.remove('hidden');
     }, duration);
 }
 function clearTip() {
@@ -467,6 +471,43 @@ function openPrestigePanel() {
         container.appendChild(card);
     })
 }
+function showWelcomeModal() {
+    const modal = document.getElementById('welcome-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    scenarioPanelElement?.classList.add('hidden');
+}
+function hideWelcomeModal() {
+    const modal = document.getElementById('welcome-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    scenarioPanelElement?.classList.remove('hidden');
+}
+function wireWelcomeButtons() {
+    const startBtn = document.getElementById('welcome-start-tutorial');
+    const skipBtn = document.getElementById('welcome-skip-tutorial');
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            gameState.meta = gameState.meta || getDefaultMeta();
+            gameState.meta.tutorialCompleted = false;
+            gameState.meta.tutorialPending = true;
+            hideWelcomeModal();
+            showTip('Starting tutorial (non functional yet)', 'info', 3500);
+            if (typeof startOnboarding === 'function') startOnboarding();
+            saveGame();
+        });
+    }
+    if (skipBtn) {
+        skipBtn.addEventListener('click', () => {
+            gameState.meta = gameState.meta || getDefaultMeta();
+            gameState.meta.tutorialCompleted = true;
+            gameState.meta.tutorialPending = false;
+            hideWelcomeModal();
+            showTip('Tutorial skipped. You can replay it from settings.', 'info', 3000);
+            saveGame();
+        });
+    }
+}
 function showEventChoiceModal(event) {
     if (!eventChoiceModal || !eventChoiceTitle || !eventChoiceDescription || !eventChoicesList) return;
     eventChoiceTitle.textContent = event.title;
@@ -702,7 +743,7 @@ function updateProduction(delta) {
                             const actual = Math.min(gameState.resources.tools, amountToConsume);
                             gameState.resources.tools -= actual;
                         } else {
-                            gameState.resources[resource] -= amountToConsume;
+                            gameState.resources[resource] = Math.max(0, gameState.resources[resource] - amountToConsume);
                         }
                     }
                 }
@@ -958,6 +999,9 @@ function placeBuilding() {
     for (const resource in blueprint.cost) {
         if (gameState.resources[resource] < blueprint.cost[resource] * costModifier) {
             canAfford = false;
+            const needed = Math.ceil(blueprint.cost[resource] * costModifier);
+            const have = Math.floor(gameState.resources[resource] || 0);
+            showTip(`Not enough ${resource} to build ${blueprint.name}. Need ${needed}, have ${have}.`, 'warning', 5000);
             showMessage(`Not enough ${resource}!`, 2000);
             break;
         }
@@ -1522,23 +1566,35 @@ function generateEnvironment() {
         gameState.environment.push({type: 'stone_deposit', x, y: groundY - 15, width, height: 15, color: '#8d8d8d'});
     }
 }
-
+let prevCanvasHeight = null;
 function init() {
     const mainRect = canvas.parentElement.getBoundingClientRect();
     canvas.width = mainRect.width;
     canvas.height = mainRect.height;
+    prevCanvasHeight = canvas.height;
     loadGame();
     loadImages();
     setupEventListeners();
+    wireWelcomeButtons();
     refreshUI();
+    if (!gameState.meta || !gameState.meta.tutorialCompleted) {
+        showWelcomeModal();
+    }
     setInterval(saveGame, GAME_CONFIG.timers.saveInterval);
     requestAnimationFrame(gameLoop);
 }
-        
 window.addEventListener('resize', () => {
     const mainRect = canvas.parentElement.getBoundingClientRect();
-    canvas.width = mainRect.width;
-    canvas.height = mainRect.height;
+    const newW = mainRect.width;
+    const newH = mainRect.height;
+    const dy = (prevCanvasHeight == null) ? 0 : (newH - prevCanvasHeight);
+    canvas.width = newW;
+    canvas.height = newH;
+    if (dy !== 0) {
+        for (const b of gameState.buildings) b.y += dy;
+        for (const f of gameState.environment) f.y += dy;
+        for (const ft of gameState.floatingTexts) ft.y += dy;
+    }
+    prevCanvasHeight = newH;
 });
-
 init();

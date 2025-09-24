@@ -412,9 +412,9 @@ canvas {
     right: auto;
     width: min(90%, 680px);
     max-width: 680px;
-    background: rgba(34,197,94,0.12);
+    background: rgba(34,197,94,0.28);
     border-left: 4px solid #22c55e;
-    border: 1px solid rgba(148,163,184,0.25);
+    border: 1px solid rgba(148,163,184,0.35);
     border-radius: 0.75rem;
     padding: 0.9rem 1.1rem;
     font-size: 1rem;
@@ -519,4 +519,59 @@ canvas {
 #prestige-indicator {
     cursor: pointer;
     user-select: none;
+}
+#welcome-modal {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0,0,0,0.66);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 250;
+}
+#welcome-modal.hidden { display: none; }
+#welcome-modal .modal-content.welcome {
+    width: min(720px, 94%);
+    background: linear-gradient(180deg, rgba(31,41,55,0.98), rgba(17,24,39,0.98));
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    color: #e6eef6;
+    text-align: center;
+    box-shadow: 0 10px 35px rgba(2,6,23,0.75);
+    border: 1px solid rgba(103,232,249,0.08);
+}
+#welcome-modal .modal-content.welcome h2 {
+    margin: 0 0 .5rem 0;
+    color: #67e8f9;
+}
+.welcome-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+#welcome-start-tutorial {
+    background-color: #0891b2;
+    border: none;
+    color: white;
+    padding: 0.6rem 1.1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+}
+#welcome-start-tutorial:hover { background-color: #0ea5e9; }
+#welcome-skip-tutorial {
+    background-color: transparent;
+    border: 1px solid #374151;
+    color: #fff;
+    padding: 0.55rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+}
+#welcome-skip-tutorial.danger {
+    background-color: #dc2626;
+    border: none;
+}
+#welcome-skip-tutorial.danger:hover { 
+    background-color: #ef4444; 
 }
