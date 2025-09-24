@@ -1595,6 +1595,18 @@ function advanceOnboarding(step) {
         showTip('Build → Housing → Shack. Click the Shack button to select it.', 'info', 10000);
         openTab('build-menu');
         const shackBtn = getBuildButton('shack');
+        if (shackBtn) shackBtn.classList.add('attention-pulse');
+        const watcher = setInterval(() => {
+            const hasShack = gameState.buildings.some(b => b.type === 'shack' || b.type === 'house');
+            if (hasShack) {
+                clearInterval(watcher);
+                advanceOnboarding(2);
+            }
+        }, 500)
+        gameState.onboarding.watchers.push(watcher);
+    } else if (step === 2) {
+        showTip('Great! Now build a Woodcutter to start wood production.', 'info', 9000);
+        openTab('build-menu');
     }
 }
 let prevCanvasHeight = null;
