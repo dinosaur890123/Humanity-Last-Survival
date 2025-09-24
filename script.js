@@ -1333,7 +1333,6 @@ function populateBuildMenu() {
         if (blueprint.locked && !gameState.unlockedTechs.some(techId => researchTree[techId]?.unlocks.includes(type))) {
             continue;
         }
-
         if (!categories[blueprint.category]) {
             categories[blueprint.category] = [];
         }
@@ -1344,7 +1343,6 @@ function populateBuildMenu() {
 
     for (const categoryName of categoryOrder) {
         if (!categories[categoryName]) continue;
-
         const header = document.createElement('h2');
         header.textContent = categoryName;
         header.className = 'build-category-header';
@@ -1352,7 +1350,7 @@ function populateBuildMenu() {
 
         for (const building of categories[categoryName]) {
             const button = document.createElement('button');
-            
+            button.dataset.type = building.type;
             let costString = Object.entries(building.cost)
                 .map(([res, val]) => `${val} ${res}`)
                 .join(', ');
@@ -1399,8 +1397,7 @@ function showStatsPanel(type) {
     if (blueprint.providesHappiness) createStat('Happiness', `+${blueprint.providesHappiness}`);
     if (blueprint.workersRequired) createStat('Workers', blueprint.workersRequired);
     if (blueprint.produces) createStat('Produces', Object.entries(blueprint.produces).map(([k,v]) => `${(v*60).toFixed(2)}/min ${k}`).join(', '));
-    if (blueprint.consumes) createStat('Consumes', Object.entries(blueprint.consumes).map(([k,v]) => `${(v*60).toFixed(2)}/min ${k}`).join(', '));
-    
+    if (blueprint.consumes) createStat('Consumes', Object.entries(blueprint.consumes).map(([k,v]) => `${(v*60).toFixed(2)}/min ${k}`).join(', '));    
     statsPanelModal.classList.remove('hidden');
 }
 
@@ -1564,6 +1561,40 @@ function generateEnvironment() {
         const x = Math.random() * (canvas.width - 150);
         const width = 80 + Math.random() * 70;
         gameState.environment.push({type: 'stone_deposit', x, y: groundY - 15, width, height: 15, color: '#8d8d8d'});
+    }
+}
+function getBuildButton(type) {
+    return document.querySelector(`#build-menu button[data-type="${type}"]`);
+}
+function clearOnboardingWatchers() {
+    if (!gameState.onboarding) return;
+    (gameState.onboarding.watchers || []).forEach(id => clearInterval(id));
+    gameState.onboarding.watchers = [];
+    document.querySelectorAll('.attention-pulse').forEach(el => el.classList.remove('attention-pulse'));
+}
+function startOnboarding() {
+    gameState.onboarding = { step: 0, watchers: [] };
+    showTip('Tutorial: Open the build tab to begin.', 'info', 8000);
+    const buildTabBtn = document.querySelector(`.tab-button[onclick="openTab('build-menu')"]`);
+    if (buildTabBtn) buildTabBtn.classList.add('attention-pulse');
+    const watcher0 = setInterval(() => {
+        if (buildMenuElement.classList.contains('active')) {
+            clearInterval(watcher0);
+            gameState.onboarding.watchers = (gameState.onboarding.watchers || []).filter(id => id !== watcher0);
+            if (buildTabBtn) buildTabBtn.classList.remove('attention-pulse');
+            advanceOnboarding(1);
+        }
+    }, 300);
+    gameState.onboarding.watchers.push(watcher0);
+}
+function advanceOnboarding(step) {
+    if (!gameState.onboarding) gameState.onboarding = { watchers: [] };
+    gameState.onboarding.step = step;
+    clearOnboardingWatchers();
+    if (step === 1) {
+        showTip('Build → Housing → Shack. Click the Shack button to select it.', 'info', 10000);
+        openTab('build-menu');
+        const shackBtn = getBuildButton('shack');
     }
 }
 let prevCanvasHeight = null;
