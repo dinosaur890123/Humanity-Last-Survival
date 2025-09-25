@@ -499,6 +499,7 @@ function wireWelcomeButtons() {
     }
     if (skipBtn) {
         skipBtn.addEventListener('click', () => {
+            cancelOnboarding();
             gameState.meta = gameState.meta || getDefaultMeta();
             gameState.meta.tutorialCompleted = true;
             gameState.meta.tutorialPending = false;
@@ -1607,7 +1608,56 @@ function advanceOnboarding(step) {
     } else if (step === 2) {
         showTip('Great! Now build a Woodcutter to start wood production.', 'info', 9000);
         openTab('build-menu');
+        const wcBtn = getBuildButton('woodcutter');
+        if (wcBtn) wcBtn.classList.add('attention-pulse');
+        const watcher = setInterval(() => {
+            const hasWoodcutter = gameState.buildings.some(b => b.type === 'woodcutter');
+            if (hasWoodcutter) {
+                clearInterval(watcher);
+                advanceOnboarding(3);
+            }
+        }, 500);
+        gameState.onboarding.watchers.push(watcher);
+    } else if (step === 3) {
+        showTip('Assign one worker to the Woodcutter. Click on "Manage Workers".', 'info', 10000);
+        const manageBtn = document.getElementById('open-worker-panel-button');
+        if (manageBtn) {
+            manageBtn.classList.add('attention-pulse');
+            workerPanelModal?.classList.remove('hidden');
+            populateWorkerPanel();
+        }
+        const watcher = setInterval(() => {
+            const staffed = gameState.buildings.some(b => {
+                const bp = buildingBlueprints[b.type];
+                return bp?.workersRequired && (b.workersAssigned || 0) > 0;
+            });
+            if (staffed) {
+                clearInterval(watcher);
+                if (manageBtn) manageBtn.classList.remove('attention-pulse');
+                workerPanelModal?.classList.add('hidden');
+                advanceOnboarding(4);
+            }
+        }, 500);
+        gameState.onboarding.watchers.push(watcher);
+    } else if (step === 4) {
+        finishOnboarding();
     }
+}
+function cancelOnboarding() {
+    clearOnboardingWatchers();
+    if (gameState.onboarding) {
+        gameState.onboarding = null;
+    }
+    showTip('Tutorial cancelled.', 'info', 2000);
+}
+function finishOnboarding() {
+    clearOnboardingWatchers();
+    gameState.meta = gameState.meta || getDefaultMeta();
+    gameState.meta.tutorialCompleted = true;
+    gameState.meta.tutorialPending = false;
+    if (gameState.onboarding) gameState.onboarding = null;
+    showTip('Tutorial complete! You can replay it from settings.', 'info', 4000);
+    saveGame();
 }
 let prevCanvasHeight = null;
 function init() {
