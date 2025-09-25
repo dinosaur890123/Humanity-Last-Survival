@@ -38,6 +38,12 @@ const eventChoiceDescription = document.getElementById('event-choice-description
 const eventChoicesList = document.getElementById('event-choices-list');
 const selectedBuildingInfo = document.getElementById('selected-building-info');
 const cancelTutorialButton = document.getElementById('cancel-tutorial-button');
+const tutorialHud = document.getElementById('tutorial-hud');
+const hudStepNum = document.getElementById('hud-step-num');
+const hudStepTotal = document.getElementById('hud-step-total');
+const hudAction = document.getElementById('hud-action');
+const hudHintButton = document.getElementById('hud-hint-button');
+const hudNextButton = document.getElementById('hud-next-button');
 const upgradeCurrentName = document.getElementById('upgrade-current-name');
 const upgradeCurrentImage = document.getElementById('upgrade-current-image');
 const upgradeCurrentStats = document.getElementById('upgrade-current-stats');
@@ -1578,12 +1584,14 @@ function clearOnboardingWatchers() {
     gameState.onboarding.watchers = [];
     document.querySelectorAll('.attention-pulse').forEach(el => el.classList.remove('attention-pulse'));
     cancelTutorialButton?.classList.add('hidden');
+    hideTutorialHud();
 }
 function startOnboarding() {
     gameState.onboarding = {step: 0, watchers: []};
     cancelTutorialButton?.classList.remove('hidden');
     cancelTutorialButton?.setAttribute('aria-hidden', 'false');
     showTip('Tutorial: Open the build tab to begin.', 'info', 8000);
+    showTutorialHud(1, 4, 'Open the build tab to begin.');
     const buildTabBtn = 
         document.querySelector('.tab-button[data-tab="build-menu"]') ||
         document.querySelector(`.tab-button[onclick*="build-menu"]`) ||
@@ -1604,6 +1612,7 @@ function advanceOnboarding(step) {
     gameState.onboarding.step = step;
     clearOnboardingWatchers();
     if (step === 1) {
+        showTutorialHud(1, 4, 'Open Build → Housing → Click on the "shack".');
         showTip('Build → Housing → Shack. Click the Shack button to select it.', 'info', 10000);
         openTab('build-menu');
         const shackBtn = getBuildButton('shack');
@@ -1617,6 +1626,7 @@ function advanceOnboarding(step) {
         }, 500)
         gameState.onboarding.watchers.push(watcher);
     } else if (step === 2) {
+        showTutorialHud(1, 4, 'Open Build → Housing → Click "Shack".');
         showTip('Great! Now build a Woodcutter to start wood production.', 'info', 9000);
         openTab('build-menu');
         const wcBtn = getBuildButton('woodcutter');
@@ -1630,6 +1640,8 @@ function advanceOnboarding(step) {
         }, 500);
         gameState.onboarding.watchers.push(watcher);
     } else if (step === 3) {
+        showTutorialHud(3, 4, 'Assign one worker to the Woodcutter (Manage workers).');
+        showTutorialHud(2, 4, 'Build a Woodcutter (Build → Resources → Woodcutter).');
         showTip('Assign one worker to the Woodcutter. Click on "Manage Workers".', 'info', 10000);
         const manageBtn = document.getElementById('open-worker-panel-button');
         if (manageBtn) {
@@ -1651,6 +1663,7 @@ function advanceOnboarding(step) {
         }, 500);
         gameState.onboarding.watchers.push(watcher);
     } else if (step === 4) {
+        showTutorialHud(4, 4, 'Tutorial complete so enjoy the game!');
         finishOnboarding();
     }
 }
@@ -1661,6 +1674,7 @@ function cancelOnboarding() {
     }
     cancelTutorialButton?.classList.add('hidden');
     cancelTutorialButton?.setAttribute('aria-hidden', 'true');
+    hideTutorialHud();
     document.getElementById('welcome-start-tutorial')?.focus();
     showTip('Tutorial cancelled.', 'info', 2000);
 }
@@ -1723,13 +1737,29 @@ function trapFocusInWelcome() {
     };
     document.addEventListener('keydown', _welcomeKeyHandler);
 }
+hudHintButton?.addEventListener('click', () => {
+    const step = gameState.onboarding?.step || 1;
+    if (step === 1) showTip('Open the Build tab, then choose Housing → Shack.', 'info', 5000);
+    else if (step === 2) showTip('Select the Woodcutter in Resources and place it on the ground.', 'info', 5000);
+    else if (step === 3) showTip('Open Manage Workers and press + on the Woodcutter entry.', 'info', 5000);
+    else showTip('You are done — explore freely!', 'info', 3000);
+});
 function untrapFocusInWelcome() {
     if (_welcomeKeyHandler) {
         document.removeEventListener('keydown', _welcomeKeyHandler);
         _welcomeKeyHandler = null;
     }
 }
-
+function hideTutorialHud() {
+    tutorialHud?.classList.add('hidden');
+}
+function showTutorialHud(step, total, actionText) {
+    if (!tutorialHud) return;
+    hudStepNum.textContent = String(step);
+    hudStepTotal.textContent = String(total);
+    hudAction.textContent = actionText || '';
+    tutorialHud.classList.remove('hidden');
+}
 let prevCanvasHeight = null;
 function init() {
     const mainRect = canvas.parentElement.getBoundingClientRect();

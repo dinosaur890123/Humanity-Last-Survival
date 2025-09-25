@@ -647,3 +647,6 @@ canvas {
     font-weight: 700;
     font-size: 13px;
 }
+#tutorial-hud .hud-buttons .small:hover {
+    background: rgba(255,255,255,0.03);
+}
