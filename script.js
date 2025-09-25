@@ -492,7 +492,7 @@ function wireWelcomeButtons() {
             gameState.meta.tutorialCompleted = false;
             gameState.meta.tutorialPending = true;
             hideWelcomeModal();
-            showTip('Starting tutorial (non functional yet)', 'info', 3500);
+            showTip('Starting tutorial', 'info', 3500);
             if (typeof startOnboarding === 'function') startOnboarding();
             saveGame();
         });
@@ -1576,7 +1576,11 @@ function clearOnboardingWatchers() {
 function startOnboarding() {
     gameState.onboarding = { step: 0, watchers: [] };
     showTip('Tutorial: Open the build tab to begin.', 'info', 8000);
-    const buildTabBtn = document.querySelector(`.tab-button[onclick="openTab('build-menu')"]`);
+    const buildTabBtn = 
+        document.querySelector('.tab-button[data-tab="build-menu"]') ||
+        document.querySelector(`.tab-button[onclick*="build-menu"]`) ||
+        document.querySelector('.tab-button');
+
     if (buildTabBtn) buildTabBtn.classList.add('attention-pulse');
     const watcher0 = setInterval(() => {
         if (buildMenuElement.classList.contains('active')) {
