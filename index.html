@@ -20,6 +20,16 @@
 
     <div id="top-ui-container">
         <div id="tip-banner" class="hidden"></div>
+        <div id="tutorial-hud" class="hidden" role="status" aria-live="polite" aria-atomic="true">
+            <div class="hud-content">
+                <div class="hud-step">Step <span id="hud-step-num">1</span> of <span id="hud-step-total">4</span></div>
+                <div id="hud-action" class="hud-action">Follow the highlighted UI element.</div>
+                <div class="hud-buttons">
+                    <button id="hud-hint-button" class="small">Hint</button>
+                    <button id="hud-next-button" class="small">Next</button>
+                </div>
+            </div>
+        </div>
         <div id="resource-display">
             <p title="Basic building material. Produced by Woodcutter or Sawmill.">Wood: <span id="wood-count">0</span> <span class="rate" id="wood-rate"></span></p>
             <p title="Used in construction. Mined at the Quarry.">Stone: <span id="stone-count">0</span> <span class="rate" id="stone-rate"></span></p>
@@ -41,9 +51,9 @@
 
     <aside>
         <div class="tabs">
-            <button class="tab-button active" onclick="openTab('build-menu')">Build</button>
-            <button class="tab-button" onclick="openTab('research-panel')">Research</button>
-            <button class="tab-button" onclick="openTab('settings-panel')">Settings</button>
+            <button class="tab-button active" data-tab="build-menu" onclick="openTab('build-menu')">Build</button>
+            <button class="tab-button" data-tab="research-panel" onclick="openTab('research-panel')">Research</button>
+            <button class="tab-button" data-tab="settings-panel" onclick="openTab('settings-panel')">Settings</button>
         </div>
 
         <div id="build-menu" class="tab-content active"></div>
@@ -108,7 +118,7 @@
             <div id="event-choices-list"></div>
         </div>
     </div>
-    <div id="welcome-modal" class="hidden">
+    <div id="welcome-modal" class="hidden" role="dialog" aria-model="true" aria-labelledby="welcome-title" tabindex="-1">
         <div class="modal-content welcome">
             <h2>Welcome to Humanity's Last Survival</h2>
             <p>Rebuild civilization from the ashes. Start a short guided tutorial to learn the basics such as placing buildings, managing workers and resources. You can skip it and dive right in.</p>
@@ -119,6 +129,7 @@
             <p style="margin-top:.75rem; font-size:.85rem; opacity:.85">You can replay the tutorial later from settings.</p>
         </div>
     </div>
+    <button id="cancel-tutorial-button" class="hidden" title="Cancel tutorial" aria-hidden="true">Cancel Tutorial</button>
 <script src="config.js"></script>
 <script src="data.js"></script>
 <script src ="script.js" defer></script>

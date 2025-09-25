@@ -37,6 +37,7 @@ const eventDescription = document.getElementById('event-description');
 const eventChoiceDescription = document.getElementById('event-choice-description');
 const eventChoicesList = document.getElementById('event-choices-list');
 const selectedBuildingInfo = document.getElementById('selected-building-info');
+const cancelTutorialButton = document.getElementById('cancel-tutorial-button');
 const upgradeCurrentName = document.getElementById('upgrade-current-name');
 const upgradeCurrentImage = document.getElementById('upgrade-current-image');
 const upgradeCurrentStats = document.getElementById('upgrade-current-stats');
@@ -475,12 +476,14 @@ function showWelcomeModal() {
     const modal = document.getElementById('welcome-modal');
     if (!modal) return;
     modal.classList.remove('hidden');
+    untrapFocusInWelcome();
     scenarioPanelElement?.classList.add('hidden');
 }
 function hideWelcomeModal() {
     const modal = document.getElementById('welcome-modal');
     if (!modal) return;
     modal.classList.add('hidden');
+    untrapFocusInWelcome();
     scenarioPanelElement?.classList.remove('hidden');
 }
 function wireWelcomeButtons() {
@@ -508,6 +511,9 @@ function wireWelcomeButtons() {
             saveGame();
         });
     }
+    cancelTutorialButton?.addEventListener('click', () => {
+        if (confirm('Cancel the tutorial?')) cancelOnboarding();
+    });
 }
 function showEventChoiceModal(event) {
     if (!eventChoiceModal || !eventChoiceTitle || !eventChoiceDescription || !eventChoicesList) return;
@@ -563,7 +569,6 @@ function updateScenario() {
         }
     }
 }
-
 function updateEvents(timestamp) {
     if (gameState.activeEvent && gameState.activeEvent.type !== 'choice') {
         const elapsed = timestamp - gameState.activeEvent.startTime;
@@ -1572,15 +1577,17 @@ function clearOnboardingWatchers() {
     (gameState.onboarding.watchers || []).forEach(id => clearInterval(id));
     gameState.onboarding.watchers = [];
     document.querySelectorAll('.attention-pulse').forEach(el => el.classList.remove('attention-pulse'));
+    cancelTutorialButton?.classList.add('hidden');
 }
 function startOnboarding() {
-    gameState.onboarding = { step: 0, watchers: [] };
+    gameState.onboarding = {step: 0, watchers: []};
+    cancelTutorialButton?.classList.remove('hidden');
+    cancelTutorialButton?.setAttribute('aria-hidden', 'false');
     showTip('Tutorial: Open the build tab to begin.', 'info', 8000);
     const buildTabBtn = 
         document.querySelector('.tab-button[data-tab="build-menu"]') ||
         document.querySelector(`.tab-button[onclick*="build-menu"]`) ||
         document.querySelector('.tab-button');
-
     if (buildTabBtn) buildTabBtn.classList.add('attention-pulse');
     const watcher0 = setInterval(() => {
         if (buildMenuElement.classList.contains('active')) {
@@ -1652,6 +1659,9 @@ function cancelOnboarding() {
     if (gameState.onboarding) {
         gameState.onboarding = null;
     }
+    cancelTutorialButton?.classList.add('hidden');
+    cancelTutorialButton?.setAttribute('aria-hidden', 'true');
+    document.getElementById('welcome-start-tutorial')?.focus();
     showTip('Tutorial cancelled.', 'info', 2000);
 }
 function finishOnboarding() {
@@ -1663,6 +1673,63 @@ function finishOnboarding() {
     showTip('Tutorial complete! You can replay it from settings.', 'info', 4000);
     saveGame();
 }
+function isAnyModalOpen() {
+    const welcomeOpen = !!document.getElementById('welcome-modal') && !document.getElementById('welcome-modal').classList.contains('hidden');
+    const anyModal = !!document.querySelector('.modal-content:not(.hidden)') || !!document.querySelector('.modal:not(.hidden)');
+    const overlays = document.querySelectorAll('#worker-panel-modal:not(.hidden), #stats-panel-modal:not(.hidden), #event-choice-modal:not(.hidden)');
+    return welcomeOpen || anyModal || Array.from(overlays).some(x => true);
+}
+canvas.removeEventListener('click', canvas.__tutorialGuardHandler);
+canvas.__tutorialGuardHandler = (e) => {
+    if (isAnyModalOpen() && !(gameState.onboarding && gameState.onboarding.step === 3)) {
+        return;
+    }
+    if (gameState.buildMode && mousePos.x !== null && mousePos.y !== null) {
+        placeBuilding();
+        return;
+    }
+    const clickedBuilding = getBuildingAt(mousePos.x, mousePos.y);
+    if (clickedBuilding) {
+        gameState.selectedBuilding = clickedBuilding;
+        openUpgradePanel(gameState.selectedBuilding);
+        return;
+    }
+    const clickedFeature = getEnvironmentFeatureAt(mousePos.x, mousePos.y);
+    if (clickedFeature) {
+        harvestFeature(clickedFeature);
+        return;
+    }
+    hideUpgradePanel();
+}
+canvas.addEventListener('click', canvas.__tutorialGuardHandler);
+let _welcomeKeyHandler = null;
+function trapFocusInWelcome() {
+    const modal = document.getElementById('welcome-modal');
+    if (!modal) return;
+    const focusable = Array.from(modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+        .filter(el => !el.hasAttribute('disabled'));
+    if (!focusable.length) return;
+    let idx = 0;
+    focusable[0].focus();
+    _welcomeKeyHandler = (e) => {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            if (e.shiftKey) idx = (idx - 1 + focusable.length) % focusable.length;
+            else idx = (idx + 1) % focusable.length;
+            focusable[idx].focus();
+        } else if (e.key === 'Escape') {
+            document.getElementById('welcome-skip-tutorial')?.click();
+        }
+    };
+    document.addEventListener('keydown', _welcomeKeyHandler);
+}
+function untrapFocusInWelcome() {
+    if (_welcomeKeyHandler) {
+        document.removeEventListener('keydown', _welcomeKeyHandler);
+        _welcomeKeyHandler = null;
+    }
+}
+
 let prevCanvasHeight = null;
 function init() {
     const mainRect = canvas.parentElement.getBoundingClientRect();
@@ -1676,6 +1743,9 @@ function init() {
     refreshUI();
     if (!gameState.meta || !gameState.meta.tutorialCompleted) {
         showWelcomeModal();
+        setTimeout(() => {
+            document.getElementById('welcome-start-tutorial')?.focus();
+        }, 50);
     }
     setInterval(saveGame, GAME_CONFIG.timers.saveInterval);
     requestAnimationFrame(gameLoop);

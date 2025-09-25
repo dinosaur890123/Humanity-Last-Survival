@@ -291,6 +291,10 @@ canvas {
     width: 90%;
     max-width: 500px;
 }
+.modal-content:focus {
+    outline: 3px solid rgba(103,232,249,0.25);
+    outline-offset: 4px;
+}
 .modal-content h2 {
     text-align: center;
     margin-top: 0;
@@ -527,7 +531,7 @@ canvas {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 250;
+    z-index: 1200;
 }
 #welcome-modal.hidden { display: none; }
 #welcome-modal .modal-content.welcome {
@@ -574,4 +578,72 @@ canvas {
 }
 #welcome-skip-tutorial.danger:hover { 
     background-color: #ef4444; 
+}
+#cancel-tutorial-button {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1300;
+    background: #f97316;
+    color: white;
+    border: none;
+    padding: 0.5rem 0.8rem;
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+#cancel-tutorial-button:hover { 
+    background: #fb923c; 
+}
+#cancel-tutorial-button.hidden { 
+    display: none !important; 
+}
+#cancel-tutorial-button:focus {
+    outline: 3px solid rgba(255,255,255,0.14);
+    outline-offset: 3px;
+}
+#tutorial-hud {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 1400;
+    background: linear-gradient(180deg, rgba(2,6,23,0.9), rgba(20,27,38,0.9));
+    color: #e6eef6;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    min-width: 220px;
+    max-width: 320px;
+    font-size: 14px;
+    border: 1px solid rgba(103,232,249,0.06);
+}
+#tutorial-hud.hidden {
+    display: none;
+}
+#tutorial-hud .hud-step {
+    font-weight: 700; 
+    color: #67e8f9; 
+    margin-bottom: 6px;
+}
+#tutorial-hud .hud-action {
+    margin-bottom: 8px; 
+    color: #cbd5e1; 
+    line-height: 1.2;
+}
+#tutorial-hud .hud-buttons {
+    display:flex; 
+    gap:8px; 
+    justify-content:flex-end;
+}
+#tutorial-hud .hud-buttons .small {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #e6eef6;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
 }
