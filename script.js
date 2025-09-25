@@ -1744,6 +1744,10 @@ hudHintButton?.addEventListener('click', () => {
     else if (step === 3) showTip('Open Manage Workers and press + on the Woodcutter entry.', 'info', 5000);
     else showTip('You are done — explore freely!', 'info', 3000);
 });
+hudNextButton?.addEventListener('click', () => {
+    const cur = gameState.onboarding?.step || 0;
+    advanceOnboarding(Math.min((cur || 0) + 1, 4));
+});
 function untrapFocusInWelcome() {
     if (_welcomeKeyHandler) {
         document.removeEventListener('keydown', _welcomeKeyHandler);
