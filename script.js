@@ -482,7 +482,7 @@ function showWelcomeModal() {
     const modal = document.getElementById('welcome-modal');
     if (!modal) return;
     modal.classList.remove('hidden');
-    untrapFocusInWelcome();
+    trapFocusInWelcome();
     scenarioPanelElement?.classList.add('hidden');
 }
 function hideWelcomeModal() {
@@ -977,8 +977,10 @@ canvas.addEventListener('mousemove', e => {
     mousePos.x = e.clientX - rect.left;
     mousePos.y = e.clientY - rect.top;
 });
-
-canvas.addEventListener('click', () => {
+function handleCanvasClick(e) {
+        if (isAnyModalOpen() && !(gameState.onboarding && gameState.onboarding.step === 3)) {
+        return;
+    }
     if (gameState.buildMode && mousePos.x !== null && mousePos.y !== null) {
         placeBuilding();
         return;
@@ -995,7 +997,12 @@ canvas.addEventListener('click', () => {
         return;
     }
     hideUpgradePanel();
-});
+}
+if (canvas.__mainClickHandler) {
+    canvas.removeEventListener('click', canvas.__mainClickHandler);
+}
+    canvas.__mainClickHandler = handleCanvasClick;
+canvas.addEventListener('click', handleCanvasClick);
 
 function placeBuilding() {
     const blueprint = buildingBlueprints[gameState.buildMode];
@@ -1282,6 +1289,7 @@ function performUpgrade() {
     };
     gameState.buildings[idx] = upgraded;
     gameState.selectedBuilding = upgraded;
+    updatePopulationCap();
     showMessage('Upgraded to ' + newBlueprint.name + '!', 3000);
     populateBuildMenu();
     populateResearchPanel();
@@ -1479,6 +1487,13 @@ function populateResearchPanel() {
         const isUnlocked = gameState.unlockedTechs.includes(techId);
         const requires = tech.requires || [];
         const hasPrereqs = requires.every(id => gameState.unlockedTechs.includes(id));
+        tech.unlocks.forEach(buildingId => {
+            if (buildingBlueprints[buildingId]) {
+                buildingBlueprints[buildingId].locked = false;
+            } else {
+                console.warn('Missing blueprint for unlocked id:', buildingId);
+            }
+        });
         button.innerHTML = `${tech.name}<br><small>Cost: ${tech.cost} Knowledge</small>`;
         if (!hasPrereqs && requires.length) {
             const reqNames = requires.map(id => researchTree[id]?.name || id).join(', ');
@@ -1508,10 +1523,9 @@ function openTab(tabName) {
     const tabs = document.querySelectorAll('.tab-content');
     tabs.forEach(tab => tab.classList.remove('active'));
     document.getElementById(tabName).classList.add('active');
-
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach(button => button.classList.remove('active'));
-    const btn = document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`);
+    const btn = document.querySelector(`.tab-button[data-tab="${tabName}"]`) || document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`);
     if (btn) btn.classList.add('active');
 }
 function harvestFeature(feature) {
@@ -1626,7 +1640,7 @@ function advanceOnboarding(step) {
         }, 500)
         gameState.onboarding.watchers.push(watcher);
     } else if (step === 2) {
-        showTutorialHud(1, 4, 'Open Build → Housing → Click "Shack".');
+        showTutorialHud(2, 4, 'Open Build then build a Woodcutter to start wood production.');
         showTip('Great! Now build a Woodcutter to start wood production.', 'info', 9000);
         openTab('build-menu');
         const wcBtn = getBuildButton('woodcutter');
@@ -1641,7 +1655,6 @@ function advanceOnboarding(step) {
         gameState.onboarding.watchers.push(watcher);
     } else if (step === 3) {
         showTutorialHud(3, 4, 'Assign one worker to the Woodcutter (Manage workers).');
-        showTutorialHud(2, 4, 'Build a Woodcutter (Build → Resources → Woodcutter).');
         showTip('Assign one worker to the Woodcutter. Click on "Manage Workers".', 'info', 10000);
         const manageBtn = document.getElementById('open-worker-panel-button');
         if (manageBtn) {
@@ -1693,29 +1706,27 @@ function isAnyModalOpen() {
     const overlays = document.querySelectorAll('#worker-panel-modal:not(.hidden), #stats-panel-modal:not(.hidden), #event-choice-modal:not(.hidden)');
     return welcomeOpen || anyModal || Array.from(overlays).some(x => true);
 }
-canvas.removeEventListener('click', canvas.__tutorialGuardHandler);
-canvas.__tutorialGuardHandler = (e) => {
-    if (isAnyModalOpen() && !(gameState.onboarding && gameState.onboarding.step === 3)) {
-        return;
+function wireTutorialHudButtons() {
+    const hintBtn = document.getElementById('hud-hint-button');
+    const nextBtn = document.getElementById('hud-next-button');
+    if (hintBtn) {
+        hintBtn.addEventListener('click', () => {
+            const step = gameState.onboarding?.step || 1;
+            if (step === 1) showTip('Open the Build tab, then choose Housing → Shack.', 'info', 5000);
+            else if (step === 2) showTip('Select the Woodcutter in Resources and place it on the ground.', 'info', 5000);
+            else if (step === 3) showTip('Open Manage Workers and press + on the Woodcutter entry.', 'info', 5000);
+            else showTip('You are done — explore the game!', 'info', 3000);
+        });
     }
-    if (gameState.buildMode && mousePos.x !== null && mousePos.y !== null) {
-        placeBuilding();
-        return;
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const cur = gameState.onboarding?.step || 0;
+            const total = gameState.onboarding?.totalSteps || 4;
+            advanceOnboarding(Math.min(cur + 1, total));
+        });
     }
-    const clickedBuilding = getBuildingAt(mousePos.x, mousePos.y);
-    if (clickedBuilding) {
-        gameState.selectedBuilding = clickedBuilding;
-        openUpgradePanel(gameState.selectedBuilding);
-        return;
-    }
-    const clickedFeature = getEnvironmentFeatureAt(mousePos.x, mousePos.y);
-    if (clickedFeature) {
-        harvestFeature(clickedFeature);
-        return;
-    }
-    hideUpgradePanel();
+
 }
-canvas.addEventListener('click', canvas.__tutorialGuardHandler);
 let _welcomeKeyHandler = null;
 function trapFocusInWelcome() {
     const modal = document.getElementById('welcome-modal');
@@ -1774,6 +1785,7 @@ function init() {
     loadImages();
     setupEventListeners();
     wireWelcomeButtons();
+    wireTutorialHudButtons();
     refreshUI();
     if (!gameState.meta || !gameState.meta.tutorialCompleted) {
         showWelcomeModal();
