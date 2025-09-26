@@ -813,6 +813,7 @@ function updatePopulationCap() {
         }
     }
     gameState.populationCap = newPopCap;
+    derivedDirty.populationCap = false;
 }
 
 function update(delta) {
@@ -946,6 +947,8 @@ function draw() {
 
 let lastUpdateTime = 0;
 const UPDATE_INTERVAL = 100;
+let lastUIUpdateTime = 0;
+const UI_UPDATE_INTERVAL = 250;
 
 function gameLoop(timestamp) {
     if (!lastUpdateTime) {
@@ -964,10 +967,12 @@ function gameLoop(timestamp) {
         updateEvents(timestamp);
         sampleResourceRates(timestamp);
         lastUpdateTime += logicTicks * UPDATE_INTERVAL;
+        if (timestamp - lastUIUpdateTime >= UI_UPDATE_INTERVAL) {
+            refreshUI();
+            lastUIUpdateTime = timestamp;
+        }
     }
-
     draw();
-    refreshUI();
     requestAnimationFrame(gameLoop);
 }
 
@@ -1006,6 +1011,7 @@ canvas.addEventListener('click', handleCanvasClick);
 
 function placeBuilding() {
     const blueprint = buildingBlueprints[gameState.buildMode];
+    if (!blueprint) return;
     let costModifier = 1.0;
     if (gameState.activeEvent?.modifier?.type === 'cost') {
         costModifier = gameState.activeEvent.modifier.multiplier;
@@ -1015,6 +1021,9 @@ function placeBuilding() {
     const supportY = findLowestSupportY(snappedX, blueprint.width);
     const snappedY = supportY - blueprint.height;
     let canAfford = true;
+    gameState.buildings.push(newBuilding);
+    derivedDirty.populationCap = true;
+    derivedDirty.happinessStructure = true;
     for (const resource in blueprint.cost) {
         if (gameState.resources[resource] < blueprint.cost[resource] * costModifier) {
             canAfford = false;
@@ -1289,6 +1298,8 @@ function performUpgrade() {
     };
     gameState.buildings[idx] = upgraded;
     gameState.selectedBuilding = upgraded;
+    derivedDirty.populationCap = true;
+    derivedDirty.happinessStructure = true;
     updatePopulationCap();
     showMessage('Upgraded to ' + newBlueprint.name + '!', 3000);
     populateBuildMenu();
@@ -1313,7 +1324,8 @@ function performDemolish() {
     }
     const idx = gameState.buildings.indexOf(building);
     if (idx !== -1) gameState.buildings.splice(idx, 1);
-
+    gameState.populationCap = newPopCap;
+    derivedDirty.populationCap = false;
     gameState.selectedBuilding = null;
     hideUpgradePanel();
     showMessage('Building demolished.', 2000);
