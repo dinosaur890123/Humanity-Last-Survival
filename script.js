@@ -76,6 +76,10 @@ let gameState = {
     activeEvent: null,
     nextEventTime: 0,
 };
+let derivedDirty = {
+    populationCap: true,
+    happinessStructure: true,
+};
 let buildMenuDirty = true;
 let researchPanelDirty = true;
 let scenarioPanelDirty = true;
@@ -802,15 +806,7 @@ function updatePopulation(delta) {
             if (!gameState.meta) gameState.meta = getDefaultMeta();
             gameState.meta.totalPopulationEver = (gameState.meta.totalPopulationEver || 0) + 1;
         }
-    } else {
-        console.debug('Population growth blocked', {
-            population: gameState.population,
-            populationCap: gameState.populationCap,
-            food: gameState.resources.food,
-            growthChanceBase: (gameState.population === 0) ? GAME_CONFIG.rates.initialPopulationGrowthChance : GAME_CONFIG.rates.populationGrowthChance,
-            metaGrowthMul: getMetaMultipliers().growthRate
-        });
-    }
+    } 
 }
 function updatePopulationCap() {
     let newPopCap = 0;
