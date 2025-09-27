@@ -802,9 +802,16 @@ function updatePopulation(delta) {
             if (!gameState.meta) gameState.meta = getDefaultMeta();
             gameState.meta.totalPopulationEver = (gameState.meta.totalPopulationEver || 0) + 1;
         }
+    } else {
+        console.debug('Population growth blocked', {
+            population: gameState.population,
+            populationCap: gameState.populationCap,
+            food: gameState.resources.food,
+            growthChanceBase: (gameState.population === 0) ? GAME_CONFIG.rates.initialPopulationGrowthChance : GAME_CONFIG.rates.populationGrowthChance,
+            metaGrowthMul: getMetaMultipliers().growthRate
+        });
     }
 }
-
 function updatePopulationCap() {
     let newPopCap = 0;
     for (const building of gameState.buildings) {
@@ -1021,9 +1028,6 @@ function placeBuilding() {
     const supportY = findLowestSupportY(snappedX, blueprint.width);
     const snappedY = supportY - blueprint.height;
     let canAfford = true;
-    gameState.buildings.push(newBuilding);
-    derivedDirty.populationCap = true;
-    derivedDirty.happinessStructure = true;
     for (const resource in blueprint.cost) {
         if (gameState.resources[resource] < blueprint.cost[resource] * costModifier) {
             canAfford = false;
@@ -1059,6 +1063,8 @@ function placeBuilding() {
         workersAssigned: 0,
     };
     gameState.buildings.push(newBuilding);
+    derivedDirty.populationCap = true;
+    derivedDirty.happinessStructure = true;
     if (!gameState.meta) gameState.meta = getDefaultMeta();
     gameState.meta.totalBuildingsBuilt = (gameState.meta.totalBuildingsBuilt || 0) + 1;
     gameState.buildMode = null;
@@ -1324,7 +1330,7 @@ function performDemolish() {
     }
     const idx = gameState.buildings.indexOf(building);
     if (idx !== -1) gameState.buildings.splice(idx, 1);
-    gameState.populationCap = newPopCap;
+    updatePopulationCap();
     derivedDirty.populationCap = false;
     gameState.selectedBuilding = null;
     hideUpgradePanel();
