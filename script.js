@@ -249,7 +249,6 @@ function loadImages() {
         }
     }
 }
-
 function saveGame() {
     localStorage.setItem('humanitySurvivalSave', JSON.stringify(gameState));
 }
@@ -1418,7 +1417,7 @@ function populateScenarioPanel() {
     span.className = 'scenario-title-text';
     span.textContent = currentScenario.title + ' ';
     scenarioTitleElement.insertBefore(span, scenarioTitleElement.firstChild || null);
-    span.textContent = currentScenario.title + ' ';
+    span.textContent = currentScenario.title + '';
     objectivesListElement.innerHTML = '';
     currentScenario.objectives.forEach((obj, index) => {
         const li = document.createElement('li');
@@ -1568,6 +1567,15 @@ function populateResearchPanel() {
         const isUnlocked = gameState.unlockedTechs.includes(techId);
         const requires = tech.requires || [];
         const hasPrereqs = requires.every(id => gameState.unlockedTechs.includes(id));
+        if (isUnlocked) {
+            tech.unlocks.forEach(buildingId => {
+                if (buildingBlueprints[buildingId]) {
+                    buildingBlueprints[buildingId].locked = false;
+                } else {
+                    console.warn('Missing blueprint for unlocked id:', buildingId);
+                }
+            });
+        }
         tech.unlocks.forEach(buildingId => {
             if (buildingBlueprints[buildingId]) {
                 buildingBlueprints[buildingId].locked = false;
@@ -1603,7 +1611,8 @@ function populateResearchPanel() {
 function openTab(tabName) {
     const tabs = document.querySelectorAll('.tab-content');
     tabs.forEach(tab => tab.classList.remove('active'));
-    document.getElementById(tabName).classList.add('active');
+    const tabEl = document.getElementById(tabName);
+    if (tabEl) tabEl.classList.add('active');
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach(button => button.classList.remove('active'));
     const btn = document.querySelector(`.tab-button[data-tab="${tabName}"]`) || document.querySelector(`.tab-button[onclick="openTab('${tabName}')"]`);
