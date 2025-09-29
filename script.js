@@ -1014,28 +1014,36 @@ canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
     mousePos.x = e.clientX - rect.left;
     mousePos.y = e.clientY - rect.top;
+    // lightweight debug to confirm mouse tracking (comment out later if noisy)
+    // console.log('[DEBUG] mousemove', Math.round(mousePos.x), Math.round(mousePos.y));
 });
 function handleCanvasClick(e) {
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
+    console.log('[DEBUG] Canvas clicked at:', Math.round(clickX), Math.round(clickY));
     if (isAnyModalOpen() && !(gameState.onboarding && gameState.onboarding.step === 3)) {
+        console.log('[DEBUG] Click ignored because a modal is open');
         return;
     }
     mousePos.x = clickX;
     mousePos.y = clickY;
+    console.log('[DEBUG] Current buildMode on click:', gameState.buildMode);
     if (gameState.buildMode) {
+        console.log('[DEBUG] Calling placeBuilding from click');
         placeBuilding(clickX, clickY);
         return;
     }
     const clickedBuilding = getBuildingAt(clickX, clickY);
     if (clickedBuilding) {
+        console.log('[DEBUG] Building clicked:', clickedBuilding.type, clickedBuilding.id || 'no-id');
         gameState.selectedBuilding = clickedBuilding;
         openUpgradePanel(gameState.selectedBuilding);
         return;
     }
     const clickedFeature = getEnvironmentFeatureAt(clickX, clickY);
     if (clickedFeature) {
+        console.log('[DEBUG] Environment feature clicked:', clickedFeature.type);
         harvestFeature(clickedFeature);
         return;
     }
@@ -1047,12 +1055,18 @@ if (canvas.__mainClickHandler) {
     canvas.__mainClickHandler = handleCanvasClick;
 canvas.addEventListener('click', handleCanvasClick);
 
-function placeBuilding() {
+function placeBuilding(clickX, clickY) {
     const blueprint = buildingBlueprints[gameState.buildMode];
-    if (!blueprint) return;
+    console.log('[DEBUG] placeBuilding called with:', { clickX, clickY, buildMode: gameState.buildMode });
+    if (!blueprint) {
+        console.warn('[DEBUG] No blueprint found for buildMode:', gameState.buildMode);
+        return;
+    }
     const useX = (typeof clickX === 'number') ? clickX : mousePos.x;
     const useY = (typeof clickY === 'number') ? clickY : mousePos.y;
+    console.log('[DEBUG] useX/useY:', useX, useY);
     if (useX == null || useY == null) {
+        console.warn('[DEBUG] Invalid build position:', useX, useY);
         showMessage('Invalid build position.', 1500);
         return;
     }
@@ -1061,15 +1075,17 @@ function placeBuilding() {
         costModifier = gameState.activeEvent.modifier.multiplier;
     }
     costModifier *= getMetaMultipliers().costReduction;
-    const snappedX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
+    const snappedX = Math.floor(useX / GRID_SIZE) * GRID_SIZE;
     const supportY = findLowestSupportY(snappedX, blueprint.width);
     const snappedY = supportY - blueprint.height;
+    console.log('[DEBUG] snappedX/snappedY:', snappedX, snappedY, 'canvas:', canvas.width, canvas.height);
     if (
         snappedX < 0 ||
         snappedY < 0 ||
         snappedX + blueprint.width > canvas.width ||
         snappedY + blueprint.height > canvas.height
     ) {
+        console.warn('[DEBUG] Placement out of bounds:', { snappedX, snappedY, blueprintWidth: blueprint.width, blueprintHeight: blueprint.height, canvasWidth: canvas.width, canvasHeight: canvas.height });
         showMessage("Cannot build outside the map.", 2000);
         return;
     }
@@ -1079,28 +1095,30 @@ function placeBuilding() {
             canAfford = false;
             const needed = Math.ceil(blueprint.cost[resource] * costModifier);
             const have = Math.floor(gameState.resources[resource] || 0);
+            console.warn(`[DEBUG] Not enough ${resource}: need ${needed}, have ${have}`);
             showTip(`Not enough ${resource} to build ${blueprint.name}. Need ${needed}, have ${have}.`, 'warning', 5000);
             showMessage(`Not enough ${resource}!`, 2000);
             break;
         }
     }
     if (!canAfford) {
+        console.warn('[DEBUG] Cannot afford building:', blueprint.name);
         return;
     }
     if (isAreaOccupiedByFeature(snappedX, snappedY, blueprint.width, blueprint.height)) {
+        console.warn('[DEBUG] Area occupied by environment feature at:', snappedX, snappedY);
         showMessage("Cannot build here, area must be cleared first.", 2000);
         showTip("Clear forests or stone deposits before building.", "warning", 5000);
         return;
     }
     if (isAreaOccupied(snappedX, snappedY, blueprint.width, blueprint.height)) {
+        console.warn('[DEBUG] Area occupied by building at:', snappedX, snappedY);
         showMessage("Cannot build here, area is occupied.", 2000);
         return;
     }
-
     for (const resource in blueprint.cost) {
         gameState.resources[resource] -= blueprint.cost[resource] * costModifier;
     }
-
     const newBuilding = {
         id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2)),
         type: gameState.buildMode,
@@ -1111,6 +1129,7 @@ function placeBuilding() {
         color: blueprint.color,
         workersAssigned: 0,
     };
+    console.log('[DEBUG] Placing new building:', newBuilding);
     gameState.buildings.push(newBuilding);
     derivedDirty.populationCap = true;
     derivedDirty.happinessStructure = true;
