@@ -1410,12 +1410,14 @@ function populateScenarioPanel() {
     const currentScenario = (typeof scenarios !== 'undefined') ? scenarios[gameState.currentScenarioIndex] : null;
     if (!currentScenario) return;
     if (!scenarioTitleElement || !objectivesListElement) return;
-    let span = scenarioTitleElement.querySelector('.scenario-title-text');
-    if (!span) {
-        span = document.createElement('span');
-        span.className = 'scenario-title-text';
-        scenarioTitleElement.insertBefore(span, scenarioTitleElement.firstChild || null);
-    }
+    scenarioTitleElement.querySelectorAll('.scenario-title-text').forEach(n => n.remove());
+    Array.from(scenarioTitleElement.childNodes).forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0) node.remove();
+    });
+    const span = document.createElement('span');
+    span.className = 'scenario-title-text';
+    span.textContent = currentScenario.title + ' ';
+    scenarioTitleElement.insertBefore(span, scenarioTitleElement.firstChild || null);
     span.textContent = currentScenario.title + ' ';
     objectivesListElement.innerHTML = '';
     currentScenario.objectives.forEach((obj, index) => {
@@ -1502,8 +1504,8 @@ function showStatsPanel(type) {
 }
 
 function populateWorkerPanel() {
-    if (!buildMenuElement) return;
-    buildMenuElement.innerHTML = ''; 
+    if (!workerAssignmentsList) return;
+    workerAssignmentsList.innerHTML = '';
     const workplaces = gameState.buildings.filter(b => buildingBlueprints[b.type].workersRequired);
     if (workplaces.length === 0) {
         workerAssignmentsList.innerHTML = '<li>No workplaces built yet.</li>';
@@ -1558,6 +1560,7 @@ function populateWorkerPanel() {
     });
 }
 function populateResearchPanel() {
+    if (!researchPanelElement) return;
     researchPanelElement.innerHTML = '';
     for (const techId in researchTree) {
         const tech = researchTree[techId];
