@@ -257,7 +257,6 @@ function loadGame() {
     const savedGame = localStorage.getItem('humanitySurvivalSave');
     if (savedGame) {
         const loadedState = JSON.parse(savedGame);
-        
         const defaultState = {
             resources: {...GAME_CONFIG.initialResources},
             buildings: [],
@@ -290,6 +289,21 @@ function loadGame() {
             ...defaultState.resources,
             ...(loadedState.resources || {})
         };
+        gameState.buildings = Array.isArray(loadedState.buildings) ? loadedState.buildings.map(b => ({...b})) : [];
+        gameState.environment = Array.isArray(loadedState.environment) ? loadedState.environment.map(f => ({...f})) : [];
+        gameState.floatingTexts = Array.isArray(loadedState.floatingTexts) ? loadedState.floatingTexts.map(ft => ({...ft})) : [];
+        gameState.population = loadedState.population ?? defaultState.population;
+        gameState.unemployedWorkers = loadedState.unemployedWorkers ?? defaultState.unemployedWorkers;
+        gameState.populationCap = loadedState.populationCap ?? defaultState.populationCap;
+        gameState.happiness = loadedState.happiness ?? defaultState.happiness;
+        gameState.buildMode = loadedState.buildMode ?? defaultState.buildMode;
+        gameState.selectedBuilding = loadedState.selectedBuilding ?? defaultState.selectedBuilding;
+        gameState.unlockedTechs = Array.isArray(loadedState.unlockedTechs) ? [...loadedState.unlockedTechs] : [];
+        gameState.currentScenarioIndex = loadedState.currentScenarioIndex ?? defaultState.currentScenarioIndex;
+        gameState.currentObjectiveIndex = loadedState.currentObjectiveIndex ?? defaultState.currentObjectiveIndex;
+        gameState.scenarioComplete = loadedState.scenarioComplete ?? defaultState.scenarioComplete;
+        gameState.activeEvent = loadedState.activeEvent ?? defaultState.activeEvent;
+        gameState.nextEventTime = loadedState.nextEventTime ?? defaultState.nextEventTime;
         gameState.tips = {
             ...defaultState.tips,
             ...(loadedState.tips || {})
@@ -798,6 +812,20 @@ function updateProduction(delta) {
 function updatePopulation(delta) {
     if (gameState.population < gameState.populationCap && gameState.resources.food > 0) {
         const metaMul = getMetaMultipliers();
+        if (gameState.population === 0) {
+        const starterBase = GAME_CONFIG.rates.initialPopulationGrowthChance || 0.02;
+        const foodFactor = Math.min(1, (gameState.resources.food || 0) / Math.max(1, GAME_CONFIG.initialResources.food));
+        const starterChance = Math.min(1, starterBase * 6 * metaMul.growthRate + 0.35 * foodFactor);
+        if (Math.random() < starterChance * delta) {
+            gameState.population++;
+            gameState.unemployedWorkers++;
+            if (!gameState.meta) gameState.meta = getDefaultMeta();
+            gameState.meta.totalPopulationEver = (gameState.meta.totalPopulationEver || 0) + 1;
+        }
+        gameState.population = Math.max(0, gameState.population);
+        gameState.unemployedWorkers = Math.max(0, gameState.unemployedWorkers);
+        return;
+    }
         const growthChanceBase = (gameState.population === 0) ? GAME_CONFIG.rates.initialPopulationGrowthChance : GAME_CONFIG.rates.populationGrowthChance;
         const growthChance = growthChanceBase * metaMul.growthRate;
         if (Math.random() < growthChance * delta) {
@@ -806,7 +834,9 @@ function updatePopulation(delta) {
             if (!gameState.meta) gameState.meta = getDefaultMeta();
             gameState.meta.totalPopulationEver = (gameState.meta.totalPopulationEver || 0) + 1;
         }
-    } 
+    }
+    gameState.population = Math.max(0, gameState.population);
+    gameState.unemployedWorkers = Math.max(0, gameState.unemployedWorkers);
 }
 function updatePopulationCap() {
     let newPopCap = 0;
@@ -986,20 +1016,25 @@ canvas.addEventListener('mousemove', e => {
     mousePos.y = e.clientY - rect.top;
 });
 function handleCanvasClick(e) {
-        if (isAnyModalOpen() && !(gameState.onboarding && gameState.onboarding.step === 3)) {
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    if (isAnyModalOpen() && !(gameState.onboarding && gameState.onboarding.step === 3)) {
         return;
     }
-    if (gameState.buildMode && mousePos.x !== null && mousePos.y !== null) {
-        placeBuilding();
+    mousePos.x = clickX;
+    mousePos.y = clickY;
+    if (gameState.buildMode) {
+        placeBuilding(clickX, clickY);
         return;
     }
-    const clickedBuilding = getBuildingAt(mousePos.x, mousePos.y);
+    const clickedBuilding = getBuildingAt(clickX, clickY);
     if (clickedBuilding) {
         gameState.selectedBuilding = clickedBuilding;
         openUpgradePanel(gameState.selectedBuilding);
         return;
     }
-    const clickedFeature = getEnvironmentFeatureAt(mousePos.x, mousePos.y);
+    const clickedFeature = getEnvironmentFeatureAt(clickX, clickY);
     if (clickedFeature) {
         harvestFeature(clickedFeature);
         return;
@@ -1015,6 +1050,12 @@ canvas.addEventListener('click', handleCanvasClick);
 function placeBuilding() {
     const blueprint = buildingBlueprints[gameState.buildMode];
     if (!blueprint) return;
+    const useX = (typeof clickX === 'number') ? clickX : mousePos.x;
+    const useY = (typeof clickY === 'number') ? clickY : mousePos.y;
+    if (useX == null || useY == null) {
+        showMessage('Invalid build position.', 1500);
+        return;
+    }
     let costModifier = 1.0;
     if (gameState.activeEvent?.modifier?.type === 'cost') {
         costModifier = gameState.activeEvent.modifier.multiplier;
@@ -1023,6 +1064,15 @@ function placeBuilding() {
     const snappedX = Math.floor(mousePos.x / GRID_SIZE) * GRID_SIZE;
     const supportY = findLowestSupportY(snappedX, blueprint.width);
     const snappedY = supportY - blueprint.height;
+    if (
+        snappedX < 0 ||
+        snappedY < 0 ||
+        snappedX + blueprint.width > canvas.width ||
+        snappedY + blueprint.height > canvas.height
+    ) {
+        showMessage("Cannot build outside the map.", 2000);
+        return;
+    }
     let canAfford = true;
     for (const resource in blueprint.cost) {
         if (gameState.resources[resource] < blueprint.cost[resource] * costModifier) {
@@ -1034,11 +1084,14 @@ function placeBuilding() {
             break;
         }
     }
-
     if (!canAfford) {
         return;
     }
-
+    if (isAreaOccupiedByFeature(snappedX, snappedY, blueprint.width, blueprint.height)) {
+        showMessage("Cannot build here, area must be cleared first.", 2000);
+        showTip("Clear forests or stone deposits before building.", "warning", 5000);
+        return;
+    }
     if (isAreaOccupied(snappedX, snappedY, blueprint.width, blueprint.height)) {
         showMessage("Cannot build here, area is occupied.", 2000);
         return;
@@ -1068,7 +1121,19 @@ function placeBuilding() {
     updateUIDisplays();
     populateBuildMenu();
 }
-
+function isAreaOccupiedByFeature(x, y, width, height) {
+    for (const feature of gameState.environment) {
+        if (
+            x < feature.x + feature.width &&
+            x + width > feature.x &&
+            y < feature.y + feature.height &&
+            y + height > feature.y
+        ) {
+            return true;
+        }
+    }
+    return false;
+} 
 function getBuildingAt(x, y) {
     for (let i = gameState.buildings.length - 1; i >= 0; i--) {
         const building = gameState.buildings[i];
@@ -1324,12 +1389,16 @@ function performDemolish() {
     if (building.workersAssigned > 0) {
         gameState.unemployedWorkers += building.workersAssigned;
     }
+    gameState.unemployedWorkers = Math.min(gameState.unemployedWorkers, gameState.population);
     const idx = gameState.buildings.indexOf(building);
     if (idx !== -1) gameState.buildings.splice(idx, 1);
     updatePopulationCap();
     derivedDirty.populationCap = false;
     gameState.selectedBuilding = null;
     hideUpgradePanel();
+    if (gameState.population > gameState.populationCap) {
+        showTip(`Warning: Population exceeds housing cap by ${gameState.population - gameState.populationCap}. Population growth halted until more housing is built.`, 'danger', 9000);
+    }
     showMessage('Building demolished.', 2000);
     updatePopulationCap();
     populateBuildMenu();
@@ -1551,7 +1620,12 @@ function harvestFeature(feature) {
         showMessage("No unemployed workers available to clear the area.");
         return;
     }
-
+    feature.beingHarvested = true;
+    if (gameState.unemployedWorkers < 1) {
+        feature.beingHarvested = false;
+        showMessage("No unemployed workers available to clear the area.");
+        return;
+    }
     gameState.unemployedWorkers--;
     feature.beingHarvested = true; 
     const harvestTime = 3000; 
