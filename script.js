@@ -147,7 +147,8 @@ function getNetRatePerMinute(resource) {
 function formatRate(val) {
     if (Math.abs(val) < 0.01) return '0.00/m';
     const sign = val > 0 ? '+' : '';
-    return `${sign}${val.toFixed(val > -1 && val < 1 ? 2 : 1)}/m`;
+    const decimals = Math.abs(val) < 1 ? 2 : 1;
+    return `${sign}${val.toFixed(decimals)}/m`;
 }
 function updateResourceRateUI() {
     RESOURCE_LIST.forEach(r => {
@@ -888,21 +889,25 @@ function isAreaOccupied(x, y, width, height) {
 }
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < canvas.width; x += GRID_SIZE) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
+    const gs = (typeof GRID_SIZE !== 'undefined') ? GRID_SIZE : 32;
+    if (gridCanvas) {
+        ctx.drawImage(gridCanvas, 0, 0);
+    } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += gs) {
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, 0);
+            ctx.lineTo(x + 0.5, canvas.height);
+            ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += gs) {
+            ctx.beginPath();
+            ctx.moveTo(0, y + 0.5);
+            ctx.lineTo(canvas.width, y + 0.5);
+            ctx.stroke();
+        }
     }
-    for (let y = 0; y < canvas.height; y += GRID_SIZE) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-    }
-
     ctx.fillStyle = '#228B22';
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
     for (const feature of gameState.environment) {
@@ -930,8 +935,7 @@ function draw() {
             }
             ctx.fillRect(building.x, building.y, building.width, building.height);
             ctx.globalAlpha = 1.0;
-        }
-        
+        }        
         if (building.needsTools) {
             ctx.font = '24px sans-serif';
             ctx.textAlign = 'center';
@@ -967,7 +971,6 @@ function draw() {
             ctx.restore();
         }
     }
-
     for (const ft of gameState.floatingTexts) {
         ctx.globalAlpha = ft.duration / ft.maxDuration;
         ctx.fillStyle = ft.color;
@@ -977,7 +980,6 @@ function draw() {
     }
     ctx.globalAlpha = 1.0;
 }
-
 let lastUpdateTime = 0;
 const UPDATE_INTERVAL = 100;
 let lastUIUpdateTime = 0;
@@ -1049,14 +1051,11 @@ canvas.addEventListener('click', handleCanvasClick);
 
 function placeBuilding(clickX, clickY) {
     const blueprint = buildingBlueprints[gameState.buildMode];
-    console.log('[DEBUG] placeBuilding called with:', { clickX, clickY, buildMode: gameState.buildMode });
     if (!blueprint) {
-        console.warn('[DEBUG] No blueprint found for buildMode:', gameState.buildMode);
         return;
     }
     const useX = (typeof clickX === 'number') ? clickX : mousePos.x;
     const useY = (typeof clickY === 'number') ? clickY : mousePos.y;
-    console.log('[DEBUG] useX/useY:', useX, useY);
     if (useX == null || useY == null) {
         showMessage('Invalid build position.', 1500);
         return;
@@ -1069,14 +1068,12 @@ function placeBuilding(clickX, clickY) {
     const snappedX = Math.floor(useX / GRID_SIZE) * GRID_SIZE;
     const supportY = findLowestSupportY(snappedX, blueprint.width);
     const snappedY = supportY - blueprint.height;
-    console.log('[DEBUG] snappedX/snappedY:', snappedX, snappedY, 'canvas:', canvas.width, canvas.height);
     if (
         snappedX < 0 ||
         snappedY < 0 ||
         snappedX + blueprint.width > canvas.width ||
         snappedY + blueprint.height > canvas.height
     ) {
-        console.warn('[DEBUG] Placement out of bounds:', { snappedX, snappedY, blueprintWidth: blueprint.width, blueprintHeight: blueprint.height, canvasWidth: canvas.width, canvasHeight: canvas.height });
         showMessage("Cannot build outside the map.", 2000);
         return;
     }
@@ -1086,24 +1083,20 @@ function placeBuilding(clickX, clickY) {
             canAfford = false;
             const needed = Math.ceil(blueprint.cost[resource] * costModifier);
             const have = Math.floor(gameState.resources[resource] || 0);
-            console.warn(`[DEBUG] Not enough ${resource}: need ${needed}, have ${have}`);
             showTip(`Not enough ${resource} to build ${blueprint.name}. Need ${needed}, have ${have}.`, 'warning', 5000);
             showMessage(`Not enough ${resource}!`, 2000);
             break;
         }
     }
     if (!canAfford) {
-        console.warn('[DEBUG] Cannot afford building:', blueprint.name);
         return;
     }
     if (isAreaOccupiedByFeature(snappedX, snappedY, blueprint.width, blueprint.height)) {
-        console.warn('[DEBUG] Area occupied by environment feature at:', snappedX, snappedY);
         showMessage("Cannot build here, area must be cleared first.", 2000);
         showTip("Clear forests or stone deposits before building.", "warning", 5000);
         return;
     }
     if (isAreaOccupied(snappedX, snappedY, blueprint.width, blueprint.height)) {
-        console.warn('[DEBUG] Area occupied by building at:', snappedX, snappedY);
         showMessage("Cannot build here, area is occupied.", 2000);
         return;
     }
@@ -1120,7 +1113,6 @@ function placeBuilding(clickX, clickY) {
         color: blueprint.color,
         workersAssigned: 0,
     };
-    console.log('[DEBUG] Placing new building:', newBuilding);
     gameState.buildings.push(newBuilding);
     derivedDirty.populationCap = true;
     derivedDirty.happinessStructure = true;
@@ -1215,7 +1207,6 @@ function setupEventListeners() {
     upgradeButton?.addEventListener('click', performUpgrade);
     demolishButton?.addEventListener('click', performDemolish);
 }
-
 let messageTimeout;
 function showMessage(text, duration = 2000) {
     clearTimeout(messageTimeout);
@@ -1416,29 +1407,27 @@ function performDemolish() {
     updateUIDisplays();
 }
 function populateScenarioPanel() {
-    const currentScenario = scenarios[gameState.currentScenarioIndex];
-    if (!currentScenario || !scenarioTitleElement || !objectivesListElement) return;
-    const tn = scenarioTitleElement.firstChild;
-    const titleText = currentScenario.title + ' ';
-    if (tn && tn.nodeType === Node.TEXT_NODE) {
-        tn.textContent = titleText;
-    } else {
-        scenarioTitleElement.insertBefore(document.createTextNode(titleText), scenarioTitleElement.firstChild || null);
+    const currentScenario = (typeof scenarios !== 'undefined') ? scenarios[gameState.currentScenarioIndex] : null;
+    if (!currentScenario) return;
+    if (!scenarioTitleElement || !objectivesListElement) return;
+    let span = scenarioTitleElement.querySelector('.scenario-title-text');
+    if (!span) {
+        span = document.createElement('span');
+        span.className = 'scenario-title-text';
+        scenarioTitleElement.insertBefore(span, scenarioTitleElement.firstChild || null);
     }
+    span.textContent = currentScenario.title + ' ';
     objectivesListElement.innerHTML = '';
     currentScenario.objectives.forEach((obj, index) => {
         const li = document.createElement('li');
         li.textContent = obj.text;
-        if (obj.completed) {
-            li.className = 'completed';
-        } else if (index === gameState.currentObjectiveIndex) {
-            li.className = 'active';
-        }
+        if (obj.completed) li.className = 'completed';
+        else if (index === gameState.currentObjectiveIndex) li.className = 'active';
         objectivesListElement.appendChild(li);
     });
 }
-
 function populateBuildMenu() {
+    if (!buildMenuElement) return;
     buildMenuElement.innerHTML = ''; 
     const categories = {};
     for (const type in buildingBlueprints) {
@@ -1451,9 +1440,7 @@ function populateBuildMenu() {
         }
         categories[blueprint.category].push({type, ...blueprint});
     }
-
     const categoryOrder = ['Housing', 'Food', 'Resources', 'Industry', 'Life', 'Special'];
-
     for (const categoryName of categoryOrder) {
         if (!categories[categoryName]) continue;
         const header = document.createElement('h2');
@@ -1515,20 +1502,18 @@ function showStatsPanel(type) {
 }
 
 function populateWorkerPanel() {
-    workerAssignmentsList.innerHTML = '';
+    if (!buildMenuElement) return;
+    buildMenuElement.innerHTML = ''; 
     const workplaces = gameState.buildings.filter(b => buildingBlueprints[b.type].workersRequired);
     if (workplaces.length === 0) {
         workerAssignmentsList.innerHTML = '<li>No workplaces built yet.</li>';
         return;
     }
-
     workplaces.forEach(building => {
         const blueprint = buildingBlueprints[building.type];
         const li = document.createElement('li');
-
         const nameSpan = document.createElement('span');
         nameSpan.textContent = blueprint.name;
-
         const controlsDiv = document.createElement('div');
         controlsDiv.className = 'worker-buttons';
         controlsDiv.style.display = 'flex';
@@ -1800,8 +1785,6 @@ function finishOnboarding() {
 }
 function isAnyModalOpen() {
     const welcomeOpen = !!document.getElementById('welcome-modal') && !document.getElementById('welcome-modal').classList.contains('hidden');
-    // Only the initial welcome modal should block placement and general canvas interactions.
-    // We intentionally allow placement while other UI panels (worker, stats, event-choice, etc.) are open.
     return welcomeOpen;
 }
 function wireTutorialHudButtons() {
@@ -1874,6 +1857,31 @@ function showTutorialHud(step, total, actionText) {
     tutorialHud.classList.remove('hidden');
 }
 let prevCanvasHeight = null;
+let gridCanvas = null;
+function createGridCanvas() {
+    if (!canvas) return null;
+    const g = document.createElement('canvas');
+    g.width = canvas.width;
+    g.height = canvas.height;
+    const gctx = g.getContext('2d');
+    gctx.clearRect(0, 0, g.width, g.height);
+    const gs = (typeof GRID_SIZE !== 'undefined') ? GRID_SIZE : 32;
+    gctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    gctx.lineWidth = 1;
+    for (let x = 0; x < g.width; x += gs) {
+        gctx.beginPath();
+        gctx.moveTo(x + 0.5, 0);
+        gctx.lineTo(x + 0.5, g.height);
+        gctx.stroke();
+    }
+    for (let y = 0; y < g.height; y += gs) {
+        gctx.beginPath();
+        gctx.moveTo(0, y + 0.5);
+        gctx.lineTo(g.width, y + 0.5);
+        gctx.stroke();
+    }
+    return g;
+}
 function init() {
     const mainRect = canvas.parentElement.getBoundingClientRect();
     canvas.width = mainRect.width;
@@ -1885,6 +1893,7 @@ function init() {
     wireWelcomeButtons();
     wireTutorialHudButtons();
     refreshUI();
+    gridCanvas = createGridCanvas();
     if (!gameState.meta || !gameState.meta.tutorialCompleted) {
         showWelcomeModal();
         setTimeout(() => {
@@ -1901,6 +1910,7 @@ window.addEventListener('resize', () => {
     const dy = (prevCanvasHeight == null) ? 0 : (newH - prevCanvasHeight);
     canvas.width = newW;
     canvas.height = newH;
+    gridCanvas = createGridCanvas();
     if (dy !== 0) {
         for (const b of gameState.buildings) b.y += dy;
         for (const f of gameState.environment) f.y += dy;
