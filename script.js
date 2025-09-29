@@ -1014,36 +1014,28 @@ canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
     mousePos.x = e.clientX - rect.left;
     mousePos.y = e.clientY - rect.top;
-    // lightweight debug to confirm mouse tracking (comment out later if noisy)
-    // console.log('[DEBUG] mousemove', Math.round(mousePos.x), Math.round(mousePos.y));
 });
 function handleCanvasClick(e) {
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
-    console.log('[DEBUG] Canvas clicked at:', Math.round(clickX), Math.round(clickY));
     if (isAnyModalOpen() && !(gameState.onboarding && gameState.onboarding.step === 3)) {
-        console.log('[DEBUG] Click ignored because a modal is open');
         return;
     }
     mousePos.x = clickX;
     mousePos.y = clickY;
-    console.log('[DEBUG] Current buildMode on click:', gameState.buildMode);
     if (gameState.buildMode) {
-        console.log('[DEBUG] Calling placeBuilding from click');
         placeBuilding(clickX, clickY);
         return;
     }
     const clickedBuilding = getBuildingAt(clickX, clickY);
     if (clickedBuilding) {
-        console.log('[DEBUG] Building clicked:', clickedBuilding.type, clickedBuilding.id || 'no-id');
         gameState.selectedBuilding = clickedBuilding;
         openUpgradePanel(gameState.selectedBuilding);
         return;
     }
     const clickedFeature = getEnvironmentFeatureAt(clickX, clickY);
     if (clickedFeature) {
-        console.log('[DEBUG] Environment feature clicked:', clickedFeature.type);
         harvestFeature(clickedFeature);
         return;
     }
@@ -1066,7 +1058,6 @@ function placeBuilding(clickX, clickY) {
     const useY = (typeof clickY === 'number') ? clickY : mousePos.y;
     console.log('[DEBUG] useX/useY:', useX, useY);
     if (useX == null || useY == null) {
-        console.warn('[DEBUG] Invalid build position:', useX, useY);
         showMessage('Invalid build position.', 1500);
         return;
     }
@@ -1809,9 +1800,9 @@ function finishOnboarding() {
 }
 function isAnyModalOpen() {
     const welcomeOpen = !!document.getElementById('welcome-modal') && !document.getElementById('welcome-modal').classList.contains('hidden');
-    const anyModal = !!document.querySelector('.modal-content:not(.hidden)') || !!document.querySelector('.modal:not(.hidden)');
-    const overlays = document.querySelectorAll('#worker-panel-modal:not(.hidden), #stats-panel-modal:not(.hidden), #event-choice-modal:not(.hidden)');
-    return welcomeOpen || anyModal || Array.from(overlays).some(x => true);
+    // Only the initial welcome modal should block placement and general canvas interactions.
+    // We intentionally allow placement while other UI panels (worker, stats, event-choice, etc.) are open.
+    return welcomeOpen;
 }
 function wireTutorialHudButtons() {
     const hintBtn = document.getElementById('hud-hint-button');
