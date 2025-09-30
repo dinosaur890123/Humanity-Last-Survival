@@ -313,6 +313,60 @@ canvas {
     padding: 0.75rem;
     border-bottom: 1px solid #374151;
 }
+#worker-assignments-list .worker-buttons button {
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    border: none;
+    background: #374151;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: background-color .15s ease, transform .06s ease;
+}
+#worker-assignments-list .worker-buttons button:hover {
+    background: #0891b2;
+    transform: translateY(-1px);
+}
+#worker-assignments-list .worker-buttons button:disabled {
+    background: #1f2937;
+    color: #6b7280;
+    cursor: not-allowed;
+    transform: none;
+}
+#worker-assignments-list .worker-buttons span {
+    min-width: 56px;
+    text-align: center;
+    color: #cbd5e1;
+    font-weight: 700;
+    display: inline-block;
+}
+#worker-panel-modal .modal-content #close-worker-panel-button,
+#close-worker-panel-button {
+    background: #0891b2;
+    color: white;
+    border: none;
+    padding: 0.6rem 0.95rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    box-shadow: 0 6px 14px rgba(2,6,23,0.45);
+    transition: background-color .12s ease, transform .06s ease;
+}
+#worker-panel-modal .modal-content #close-worker-panel-button:hover,
+#close-worker-panel-button:hover {
+    background: #0ea5e9;
+    transform: translateY(-1px);
+}
+#worker-panel-modal .modal-content #close-worker-panel-button:focus {
+    outline: 3px solid rgba(103,232,249,0.14);
+    outline-offset: 3px;
+}
 #stats-image {
     width: 60px;
     height: 60px;
@@ -649,4 +703,24 @@ canvas {
 }
 #tutorial-hud .hud-buttons .small:hover {
     background: rgba(255,255,255,0.03);
+}
+#settings-prestige-button {
+    background-color: #0891b2;
+    color: #ffffff;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 700;
+    margin-left: 0.5rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    pointer-events: auto;
+}
+#settings-prestige-button:hover {
+    background-color: #0ea5e9;
+}
+#settings-prestige-button:disabled {
+    background-color: #1f2937;
+    color: #6b7280;
+    cursor: not-allowed;
 }

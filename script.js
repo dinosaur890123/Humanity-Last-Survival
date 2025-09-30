@@ -1895,11 +1895,20 @@ function createGridCanvas() {
     return g;
 }
 function init() {
+    if (!canvas) {
+        console.error('Canvas element #gameCanvas not found. Aborting init(). Ensure the script runs after DOM is ready.');
+        return;
+    }
     const mainRect = canvas.parentElement.getBoundingClientRect();
     canvas.width = mainRect.width;
     canvas.height = mainRect.height;
     prevCanvasHeight = canvas.height;
     loadGame();
+    RESOURCE_LIST.forEach(r => {
+        resourceRateTracker.lastValues[r] = gameState.resources[r] || 0;
+        resourceRateTracker.perSecondDeltas[r] = [];
+    });
+    resourceRateTracker.lastSampleTime = performance.now();
     loadImages();
     setupEventListeners();
     wireWelcomeButtons();
