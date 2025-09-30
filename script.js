@@ -993,17 +993,19 @@ function draw() {
 }
 let lastUpdateTime = 0;
 const UPDATE_INTERVAL = 100;
-let gameSpeed = 1.0;
-let gamePaused = false;
+let gameSpeed = parseFloat(localStorage.getItem('hls_gameSpeed') || '1.0');
+let gamePaused = localStorage.getItem('hls_gamePaused') === 'true';
 let lastUIUpdateTime = 0;
 const UI_UPDATE_INTERVAL = 250;
 function togglePause() {
     gamePaused = !gamePaused;
+    localStorage.setItem('hls_gamePaused', String(gamePaused));
     showMessage(gamePaused ? 'Paused' : 'Resumed', 1200);
     updateSpeedButtonsUI();
 }
 function setGameSpeed(s) {
     gameSpeed = s;
+    localStorage.setItem('hls_gameSpeed', String(gameSpeed));
     showMessage(`Game speed: x${s}`, 1200);
     updateSpeedButtonsUI();
 }
@@ -1013,10 +1015,17 @@ function updateSpeedButtonsUI() {
     container.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
     container.querySelectorAll('[data-speed]').forEach(btn => {
         const v = parseFloat(btn.dataset.speed);
-        if (v === gameSpeed) btn.classList.add('active');
+        const pressed = (v === gameSpeed);
+        btn.classList.toggle('active', pressed);
+        btn.setAttribute('aria-pressed', String(pressed));
     });
     const pauseBtn = container.querySelector('#speed-pause');
-    if (pauseBtn) pauseBtn.textContent = gamePaused ? '▶' : '⏸';
+    if (pauseBtn) {
+        pauseBtn.textContent = gamePaused ? '▶' : '⏸';
+        pauseBtn.classList.toggle('active', gamePaused);
+        pauseBtn.setAttribute('aria-pressed', String(gamePaused));
+        pauseBtn.title = gamePaused ? 'Resume (Space)' : 'Pause (Space)';
+    }
 }
 function gameLoop(timestamp) {
     if (!lastUpdateTime) {
