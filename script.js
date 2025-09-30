@@ -186,7 +186,6 @@ gameState.tips = {
     foodIntro: false,
     buildFarmHint: false,
     unemployedHint: false,
-    assignWorkerHint: false,
     housingCapHint: false,
     upgradeHint: false,
     saveWoodForCutterHint: false,
@@ -196,16 +195,7 @@ function evaluateContextualTips() {
         gameState.tips.foodIntro = true;
         showTip("Food is dropping. Build a Farm to sustain growth.", 'warning');
     }
-    if (!gameState.tips.assignWorkerHint) {
-        const idleWorkplace = gameState.buildings.find(b => {
-            const bp = buildingBlueprints[b.type];
-            return bp.workersRequired && b.workersAssigned === 0;
-        });
-        if (idleWorkplace) {
-            gameState.tips.assignWorkerHint = true;
-            showTip("Assign workers: click 'Manage Workers' to staff buildings.", 'info');
-        }
-    }
+    
     if (!gameState.tips.buildFarmHint) {
         const hasFarm = gameState.buildings.some(b => b.type === 'farm');
         if (!hasFarm && gameState.population >= 3 && gameState.resources.food < GAME_CONFIG.initialResources.food * 0.85) {
@@ -286,7 +276,6 @@ function loadGame() {
                 foodIntro: false,
                 buildFarmHint: false,
                 unemployedHint: false,
-                assignWorkerHint: false,
                 housingCapHint: false,
                 upgradeHint: false,
                 saveWoodForCutterHint: false,
@@ -316,6 +305,8 @@ function loadGame() {
             ...defaultState.tips,
             ...(loadedState.tips || {})
         };
+        // remove deprecated tip keys from older saves
+        if (gameState.tips && 'assignWorkerHint' in gameState.tips) delete gameState.tips.assignWorkerHint;
         gameState.meta = {
             ...getDefaultMeta(),
             ...(loadedState.meta || {})
@@ -360,7 +351,6 @@ function initNewGame() {
             foodIntro: false,
             buildFarmHint: false,
             unemployedHint: false,
-            assignWorkerHint: false,
             housingCapHint: false,
             upgradeHint: false,
             saveWoodForCutterHint: false,
@@ -1267,7 +1257,6 @@ function createSpeedControls() {
     const container = document.createElement('div');
     container.id = 'speed-controls';
     container.style.position = 'fixed';
-    container.style.left = '10rem';
     container.style.bottom = '1rem';
     container.style.zIndex = '200';
     container.style.display = 'flex';
@@ -1852,7 +1841,7 @@ function startOnboarding() {
     cancelTutorialButton?.classList.remove('hidden');
     cancelTutorialButton?.setAttribute('aria-hidden', 'false');
     showTip('Tutorial: Open the build tab to begin.', 'info', 8000);
-    showTutorialHud(1, 4, 'Open the build tab to begin.');
+    
     const buildTabBtn = 
         document.querySelector('.tab-button[data-tab="build-menu"]') ||
         document.querySelector(`.tab-button[onclick*="build-menu"]`) ||
@@ -1873,7 +1862,7 @@ function advanceOnboarding(step) {
     gameState.onboarding.step = step;
     clearOnboardingWatchers();
     if (step === 1) {
-        showTutorialHud(1, 4, 'Open Build → Housing → Click on the "shack".');
+    
         showTip('Build → Housing → Shack. Click the Shack button to select it.', 'info', 10000);
         openTab('build-menu');
         const shackBtn = getBuildButton('shack');
@@ -1887,7 +1876,7 @@ function advanceOnboarding(step) {
         }, 500)
         gameState.onboarding.watchers.push(watcher);
     } else if (step === 2) {
-        showTutorialHud(2, 4, 'Open Build then build a Woodcutter to start wood production.');
+    
         showTip('Great! Now build a Woodcutter to start wood production.', 'info', 9000);
         openTab('build-menu');
         const wcBtn = getBuildButton('woodcutter');
@@ -1901,29 +1890,8 @@ function advanceOnboarding(step) {
         }, 500);
         gameState.onboarding.watchers.push(watcher);
     } else if (step === 3) {
-        showTutorialHud(3, 4, 'Assign one worker to the Woodcutter (Manage workers).');
-        showTip('Assign one worker to the Woodcutter. Click on "Manage Workers".', 'info', 10000);
-        const manageBtn = document.getElementById('open-worker-panel-button');
-        if (manageBtn) {
-            manageBtn.classList.add('attention-pulse');
-            workerPanelModal?.classList.remove('hidden');
-            populateWorkerPanel();
-        }
-        const watcher = setInterval(() => {
-            const staffed = gameState.buildings.some(b => {
-                const bp = buildingBlueprints[b.type];
-                return bp?.workersRequired && (b.workersAssigned || 0) > 0;
-            });
-            if (staffed) {
-                clearInterval(watcher);
-                if (manageBtn) manageBtn.classList.remove('attention-pulse');
-                workerPanelModal?.classList.add('hidden');
-                advanceOnboarding(4);
-            }
-        }, 500);
-        gameState.onboarding.watchers.push(watcher);
-    } else if (step === 4) {
-        showTutorialHud(4, 4, 'Tutorial complete so enjoy the game!');
+    
+        showTip('Tutorial complete! Enjoy the game.', 'info', 4000);
         finishOnboarding();
     }
 }
@@ -1955,18 +1923,17 @@ function wireTutorialHudButtons() {
     const hintBtn = document.getElementById('hud-hint-button');
     const nextBtn = document.getElementById('hud-next-button');
     if (hintBtn) {
-        hintBtn.addEventListener('click', () => {
+            hintBtn.addEventListener('click', () => {
             const step = gameState.onboarding?.step || 1;
             if (step === 1) showTip('Open the Build tab, then choose Housing → Shack.', 'info', 5000);
             else if (step === 2) showTip('Select the Woodcutter in Resources and place it on the ground.', 'info', 5000);
-            else if (step === 3) showTip('Open Manage Workers and press + on the Woodcutter entry.', 'info', 5000);
             else showTip('You are done — explore the game!', 'info', 3000);
         });
     }
     if (nextBtn) {
         nextBtn.addEventListener('click', () => {
             const cur = gameState.onboarding?.step || 0;
-            const total = gameState.onboarding?.totalSteps || 4;
+            const total = gameState.onboarding?.totalSteps || 3;
             advanceOnboarding(Math.min(cur + 1, total));
         });
     }
@@ -1997,12 +1964,11 @@ hudHintButton?.addEventListener('click', () => {
     const step = gameState.onboarding?.step || 1;
     if (step === 1) showTip('Open the Build tab, then choose Housing → Shack.', 'info', 5000);
     else if (step === 2) showTip('Select the Woodcutter in Resources and place it on the ground.', 'info', 5000);
-    else if (step === 3) showTip('Open Manage Workers and press + on the Woodcutter entry.', 'info', 5000);
     else showTip('You are done — explore freely!', 'info', 3000);
 });
 hudNextButton?.addEventListener('click', () => {
     const cur = gameState.onboarding?.step || 0;
-    advanceOnboarding(Math.min((cur || 0) + 1, 4));
+    advanceOnboarding(Math.min((cur || 0) + 1, 3));
 });
 function untrapFocusInWelcome() {
     if (_welcomeKeyHandler) {
@@ -2014,11 +1980,7 @@ function hideTutorialHud() {
     tutorialHud?.classList.add('hidden');
 }
 function showTutorialHud(step, total, actionText) {
-    if (!tutorialHud) return;
-    hudStepNum.textContent = String(step);
-    hudStepTotal.textContent = String(total);
-    hudAction.textContent = actionText || '';
-    tutorialHud.classList.remove('hidden');
+    return;
 }
 let prevCanvasHeight = null;
 let gridCanvas = null;

@@ -470,22 +470,31 @@ canvas {
     right: auto;
     width: min(90%, 680px);
     max-width: 680px;
-    background: rgba(34,197,94,0.28);
-    border-left: 4px solid #22c55e;
-    border: 1px solid rgba(148,163,184,0.35);
+    background: rgba(2,6,23,0.86);
+    color: #f8fafc;
+    border-left: 4px solid #06b6d4;
+    border: 1px solid rgba(103,232,249,0.06);
     border-radius: 0.75rem;
-    padding: 0.9rem 1.1rem;
+    padding: 1rem 1.25rem;
     font-size: 1rem;
     line-height: 1.35;
-    color:#e2e8f0;
     backdrop-filter: blur(6px);
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
     animation: tipFadeIn 0.25s ease;
     pointer-events: none;
     z-index: 150;
 }
-#tip-banner.warning {border-left-color:#fbbf24; background:rgba(251,191,36,0.12);}
-#tip-banner.danger { border-left-color:#ef4444; background:rgba(239,68,68,0.12); }
-#tip-banner.hidden { display:none; }
+#tip-banner.warning {
+    border-left-color: #fbbf24;
+    background: rgba(20,14,4,0.86);
+}
+#tip-banner.danger {
+    border-left-color: #ef4444;
+    background: rgba(28,6,6,0.88);
+}
+#tip-banner.hidden { 
+    display:none; 
+}
 @keyframes tipFadeIn {
     from { opacity:0; transform:translateY(-8px); }
     to { opacity:1; transform:translateY(0); }
@@ -726,7 +735,8 @@ canvas {
 }
 #speed-controls {
     position: fixed;
-    left: 16rem;
+    left: auto;
+    right: 20rem;
     bottom: 1rem;
     z-index: 220;
     display: flex;
@@ -750,16 +760,20 @@ canvas {
     transition: transform .08s ease, box-shadow .12s ease;
     box-shadow: none;
 }
-#speed-controls button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(2,6,23,0.45);
+#speed-controls button:active {
+    transform: translateY(0);
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.55);
+}
+#speed-controls button:not(.active):active {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.08));
+}
+#speed-controls button:focus-visible {
+    outline: 3px solid rgba(6,182,212,0.22);
+    outline-offset: 3px;
 }
 #speed-controls button.active {
     background: linear-gradient(180deg,#06b6d4,#0891b2);
     color: #041022;
-}
-#speed-controls button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    filter: grayscale(0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(6,182,212,0.12), inset 0 -2px 6px rgba(0,0,0,0.12);
 }
