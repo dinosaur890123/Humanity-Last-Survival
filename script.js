@@ -1044,12 +1044,8 @@ function gameLoop(timestamp) {
     const deltaTime = timestamp - lastUpdateTime;
     if (deltaTime >= UPDATE_INTERVAL) {
         const logicTicks = Math.floor(deltaTime / UPDATE_INTERVAL);
-        const baseDelta = UPDATE_INTERVAL / 1000.0;
-        const tickDelta = gamePaused ? 0 : baseDelta * gameSpeed;
         const deltaInSeconds = (UPDATE_INTERVAL / 1000.0) * gameSpeed;
-        for (let i = 0; i < logicTicks; i++) {
-            update(deltaInSeconds);
-        }
+        for (let i = 0; i < logicTicks; i++) update(deltaInSeconds);
         updateEvents(timestamp);
         sampleResourceRates(timestamp);
         lastUpdateTime += logicTicks * UPDATE_INTERVAL;
@@ -1278,8 +1274,9 @@ function createSpeedControls() {
     container.style.gap = '6px';
     const pauseBtn = document.createElement('button');
     pauseBtn.id = 'speed-pause';
-    pauseBtn.title = 'Pause / resume (Space)';
-    pauseBtn.textContent = '⏸';
+    pauseBtn.title = gamePaused ? 'Resume (Space)' : 'Pause (Space)';
+    pauseBtn.setAttribute('aria-label', 'Pause or resume the game (Space)');
+    pauseBtn.textContent = gamePaused ? '▶' : '⏸';
     pauseBtn.style.padding = '8px';
     pauseBtn.style.borderRadius = '6px';
     pauseBtn.style.background = '#374151';
@@ -1290,7 +1287,8 @@ function createSpeedControls() {
         const b = document.createElement('button');
         b.dataset.speed = s;
         b.textContent = `x${s}`;
-        b.title = `Set speed x${s} (${s === 1 ? '2' : ''})`;
+        b.title = `Set simulation speed x${s}`;
+        b.setAttribute('aria-label', `Set speed ${s} times`);
         b.style.padding = '8px';
         b.style.borderRadius = '6px';
         b.style.background = '#1f2937';
