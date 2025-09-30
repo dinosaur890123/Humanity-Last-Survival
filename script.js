@@ -993,23 +993,54 @@ function draw() {
 }
 let lastUpdateTime = 0;
 const UPDATE_INTERVAL = 100;
+let gameSpeed = 1.0;
+let gamePaused = false;
 let lastUIUpdateTime = 0;
 const UI_UPDATE_INTERVAL = 250;
-
+function togglePause() {
+    gamePaused = !gamePaused;
+    showMessage(gamePaused ? 'Paused' : 'Resumed', 1200);
+    updateSpeedButtonsUI();
+}
+function setGameSpeed(s) {
+    gameSpeed = s;
+    showMessage(`Game speed: x${s}`, 1200);
+    updateSpeedButtonsUI();
+}
+function updateSpeedButtonsUI() {
+    const container = document.getElementById('speed-controls');
+    if (!container) return;
+    container.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+    container.querySelectorAll('[data-speed]').forEach(btn => {
+        const v = parseFloat(btn.dataset.speed);
+        if (v === gameSpeed) btn.classList.add('active');
+    });
+    const pauseBtn = container.querySelector('#speed-pause');
+    if (pauseBtn) pauseBtn.textContent = gamePaused ? '▶' : '⏸';
+}
 function gameLoop(timestamp) {
     if (!lastUpdateTime) {
         lastUpdateTime = timestamp;
     }
+    if (gamePaused) {
+        lastUpdateTime = timestamp; 
+        if (timestamp - lastUIUpdateTime >= UI_UPDATE_INTERVAL) {
+            refreshUI();
+            lastUIUpdateTime = timestamp;
+        }
+        draw();
+        requestAnimationFrame(gameLoop);
+        return;
+    }
     const deltaTime = timestamp - lastUpdateTime;
-
     if (deltaTime >= UPDATE_INTERVAL) {
         const logicTicks = Math.floor(deltaTime / UPDATE_INTERVAL);
-        const deltaInSeconds = UPDATE_INTERVAL / 1000.0;
-
+        const baseDelta = UPDATE_INTERVAL / 1000.0;
+        const tickDelta = gamePaused ? 0 : baseDelta * gameSpeed;
+        const deltaInSeconds = (UPDATE_INTERVAL / 1000.0) * gameSpeed;
         for (let i = 0; i < logicTicks; i++) {
             update(deltaInSeconds);
         }
-        
         updateEvents(timestamp);
         sampleResourceRates(timestamp);
         lastUpdateTime += logicTicks * UPDATE_INTERVAL;
@@ -1176,6 +1207,13 @@ function setupEventListeners() {
             canvas.classList.remove('build-cursor');
             showMessage('Build cancelled.', 1500);
         }
+        if (e.code === 'Space') {
+            e.preventDefault();
+            togglePause();
+        }
+        if (e.key === '1') setGameSpeed(0.5);
+        if (e.key === '2') setGameSpeed(1.0);
+        if (e.key === '3') setGameSpeed(2.0);
     });
     canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
@@ -1219,6 +1257,41 @@ function setupEventListeners() {
     upgradeButton?.addEventListener('click', performUpgrade);
     demolishButton?.addEventListener('click', performDemolish);
 }
+function createSpeedControls() {
+    if (document.getElementById('speed-controls')) return;
+    const container = document.createElement('div');
+    container.id = 'speed-controls';
+    container.style.position = 'fixed';
+    container.style.left = '10rem';
+    container.style.bottom = '1rem';
+    container.style.zIndex = '200';
+    container.style.display = 'flex';
+    container.style.gap = '6px';
+    const pauseBtn = document.createElement('button');
+    pauseBtn.id = 'speed-pause';
+    pauseBtn.title = 'Pause / resume (Space)';
+    pauseBtn.textContent = '⏸';
+    pauseBtn.style.padding = '8px';
+    pauseBtn.style.borderRadius = '6px';
+    pauseBtn.style.background = '#374151';
+    pauseBtn.style.color = '#ffffff';
+    pauseBtn.addEventListener('click', () => togglePause());
+    container.appendChild(pauseBtn);
+    [0.5, 1.0, 2.0].forEach(s => {
+        const b = document.createElement('button');
+        b.dataset.speed = s;
+        b.textContent = `x${s}`;
+        b.title = `Set speed x${s} (${s === 1 ? '2' : ''})`;
+        b.style.padding = '8px';
+        b.style.borderRadius = '6px';
+        b.style.background = '#1f2937';
+        b.style.color = '#fff';
+        b.addEventListener('click', () => setGameSpeed(s));
+        container.appendChild(b);
+    });
+    document.body.appendChild(container);
+    updateSpeedButtonsUI();
+}
 let messageTimeout;
 function showMessage(text, duration = 2000) {
     clearTimeout(messageTimeout);
@@ -1249,7 +1322,6 @@ function refreshUI() {
 function hideUpgradePanel() {
     selectedBuildingInfo?.classList.add('hidden');
 }
-
 function openUpgradePanel(building, isRefresh = false) {
     if (!building) return hideUpgradePanel();
     const blueprint = buildingBlueprints[building.type];
@@ -1986,6 +2058,7 @@ function init() {
     setupEventListeners();
     wireWelcomeButtons();
     wireTutorialHudButtons();
+    createSpeedControls();
     refreshUI();
     gridCanvas = createGridCanvas();
     if (!gameState.meta || !gameState.meta.tutorialCompleted) {
