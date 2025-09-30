@@ -193,7 +193,6 @@ gameState.tips = {
 function evaluateContextualTips() {
     if (!gameState.tips.foodIntro && gameState.resources.food < GAME_CONFIG.initialResources.food) {
         gameState.tips.foodIntro = true;
-        showTip("Food is dropping. Build a Farm to sustain growth.", 'warning');
     }
     
     if (!gameState.tips.buildFarmHint) {
@@ -305,8 +304,7 @@ function loadGame() {
             ...defaultState.tips,
             ...(loadedState.tips || {})
         };
-        // remove deprecated tip keys from older saves
-        if (gameState.tips && 'assignWorkerHint' in gameState.tips) delete gameState.tips.assignWorkerHint;
+    if (gameState.tips && 'assignWorkerHint' in gameState.tips) delete gameState.tips.assignWorkerHint;
         gameState.meta = {
             ...getDefaultMeta(),
             ...(loadedState.meta || {})
@@ -1200,7 +1198,7 @@ function setupEventListeners() {
         if (e.key === 'Escape' && gameState.buildMode) {
             gameState.buildMode = null;
             canvas.classList.remove('build-cursor');
-            showMessage('Build cancelled.', 1500);
+            showTransientMessage('Placement cancelled', 1200);
         }
         if (e.code === 'Space') {
             e.preventDefault();
@@ -1215,7 +1213,7 @@ function setupEventListeners() {
         if (gameState.buildMode) {
             gameState.buildMode = null;
             canvas.classList.remove('build-cursor');
-            showMessage('Build cancelled.', 1500);
+            showTransientMessage('Placement cancelled', 1200);
         }
     });
     openWorkerPanelButton?.addEventListener('click', () => {
@@ -1295,6 +1293,32 @@ function showMessage(text, duration = 2000) {
     messageBoxElement.textContent = text;
     messageTimeout = setTimeout(() => {
         if (messageBoxElement) messageBoxElement.textContent = '';
+    }, duration);
+}
+let transientTimeout = null;
+function showTransientMessage(text, duration = 1800) {
+    let el = document.getElementById('transient-msg');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'transient-msg';
+        el.style.position = 'fixed';
+        el.style.left = '50%';
+        el.style.bottom = '3.5rem';
+        el.style.transform = 'translateX(-50%)';
+        el.style.zIndex = '260';
+        el.style.padding = '8px 12px';
+        el.style.background = 'rgba(17,24,39,0.9)';
+        el.style.color = '#e6eef6';
+        el.style.borderRadius = '6px';
+        el.style.boxShadow = '0 6px 18px rgba(2,6,23,0.6)';
+        el.style.fontWeight = '600';
+        document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.classList.remove('hidden');
+    if (transientTimeout) clearTimeout(transientTimeout);
+    transientTimeout = setTimeout(() => {
+        el.classList.add('hidden');
     }, duration);
 }
 
@@ -1550,8 +1574,15 @@ function populateBuildMenu() {
             button.innerHTML = `${building.name} <br><small>${additionalInfo}</small>`;
             
             button.addEventListener('click', () => {
-                gameState.buildMode = building.type;
-                canvas.classList.add('build-cursor');
+                if (gameState.buildMode === building.type) {
+                    gameState.buildMode = null;
+                    canvas.classList.remove('build-cursor');
+                    showTransientMessage('Placement cancelled', 1200);
+                } else {
+                    gameState.buildMode = building.type;
+                    canvas.classList.add('build-cursor');
+                    showTransientMessage('Press Esc to cancel placement', 2500);
+                }
             });
 
             button.addEventListener('contextmenu', (e) => {
@@ -1764,18 +1795,7 @@ function harvestFeature(feature) {
         showMessage("This area is already being cleared.");
         return;
     }
-    if (gameState.unemployedWorkers < 1) {
-        showMessage("No unemployed workers available to clear the area.");
-        return;
-    }
     feature.beingHarvested = true;
-    if (gameState.unemployedWorkers < 1) {
-        feature.beingHarvested = false;
-        showMessage("No unemployed workers available to clear the area.");
-        return;
-    }
-    gameState.unemployedWorkers--;
-    feature.beingHarvested = true; 
     const harvestTime = 3000; 
     createFloatingText('Clearing...', feature.x + feature.width / 2, feature.y, '#ffff00');
     setTimeout(() => {
@@ -1798,7 +1818,7 @@ function harvestFeature(feature) {
             }
             showMessage(`Cleared ${feature.type.replace('_', ' ')} for ${resourceAmount} ${resourceType}.`, 2500);
         }
-        gameState.unemployedWorkers++;
+        
     }, harvestTime);
 }
 function getEnvironmentFeatureAt(x, y) {
