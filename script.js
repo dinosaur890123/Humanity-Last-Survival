@@ -237,8 +237,16 @@ function pulseManageWorkersIfNeeded() {
     openWorkerPanelButton.classList.toggle('attention-pulse', !!idle);
 }
 function loadImages() {
+    const skipTypes = new Set(['glassworks','toolsmith','research_lab','arcology','geothermal_plant','victory-project']);
     for (const type in buildingBlueprints) {
         const blueprint = buildingBlueprints[type];
+        if (!blueprint) continue;
+        if (skipTypes.has(type)) {
+            delete blueprint.imgSrc;
+            blueprint.img = undefined;
+            blueprint.imgFailed = true;
+            continue;
+        }
         if (blueprint.imgSrc) {
             blueprint.img = new Image();
             blueprint.img.src = blueprint.imgSrc;
@@ -316,7 +324,7 @@ function loadGame() {
             ...DEFAULT_META.upgrades,
             ...(gameState.meta.upgrades || {})
         };
-        
+        gameState.meta.autoAssignWorkers = loadedState.meta?.autoAssignWorkers ?? (gameState.meta.autoAssignWorkers ?? true);
         scenarios.forEach((scenario, sIndex) => {
             scenario.objectives.forEach((obj, oIndex) => {
                 obj.completed = sIndex < gameState.currentScenarioIndex || (sIndex === gameState.currentScenarioIndex && oIndex < gameState.currentObjectiveIndex);
@@ -819,6 +827,7 @@ function updatePopulation(delta) {
         if (Math.random() < starterChance * delta) {
             gameState.population++;
             gameState.unemployedWorkers++;
+            if (gameState.meta?.autoAssignWorkers) autoAssignWorkers();
             if (!gameState.meta) gameState.meta = getDefaultMeta();
             gameState.meta.totalPopulationEver = (gameState.meta.totalPopulationEver || 0) + 1;
         }
@@ -831,6 +840,7 @@ function updatePopulation(delta) {
         if (Math.random() < growthChance * delta) {
             gameState.population++;
             gameState.unemployedWorkers++;
+            if (gameState.meta?.autoAssignWorkers) autoAssignWorkers();
             if (!gameState.meta) gameState.meta = getDefaultMeta();
             gameState.meta.totalPopulationEver = (gameState.meta.totalPopulationEver || 0) + 1;
         }
@@ -846,7 +856,9 @@ function updatePopulationCap() {
         }
     }
     gameState.populationCap = newPopCap;
-    derivedDirty.populationCap = false;
+    if (typeof derivedDirty !== 'undefined' && derivedDirty) {
+        derivedDirty.populationCap = false;
+    }
 }
 
 function update(delta) {
@@ -1120,6 +1132,7 @@ function placeBuilding(clickX, clickY) {
     gameState.buildMode = null;
     canvas.classList.remove('build-cursor');
     updateUIDisplays();
+    if (gameState.meta?.autoAssignWorkers) autoAssignWorkers();
     populateBuildMenu();
 }
 function isAreaOccupiedByFeature(x, y, width, height) {
@@ -1331,7 +1344,6 @@ function updateDemolishTooltip(building) {
         }
     }
     demolishButton.title = `Demolish ${bp.name}\n${refundText}${warning}\nClick to remove this building.`;
-
 }
 function performUpgrade() {
     if (!gameState.selectedBuilding || !upgradeButton?.dataset.nextType) return;
@@ -1368,6 +1380,7 @@ function performUpgrade() {
     derivedDirty.populationCap = true;
     derivedDirty.happinessStructure = true;
     updatePopulationCap();
+    if (gameState.meta?.autoAssignWorkers) autoAssignWorkers();
     showMessage('Upgraded to ' + newBlueprint.name + '!', 3000);
     populateBuildMenu();
     populateResearchPanel();
@@ -1399,6 +1412,7 @@ function performDemolish() {
     if (gameState.population > gameState.populationCap) {
         showTip(`Warning: Population exceeds housing cap by ${gameState.population - gameState.populationCap}. Population growth halted until more housing is built.`, 'danger', 9000);
     }
+    if (gameState.meta?.autoAssignWorkers) autoAssignWorkers();
     showMessage('Building demolished.', 2000);
     updatePopulationCap();
     populateBuildMenu();
@@ -1504,6 +1518,33 @@ function showStatsPanel(type) {
 
 function populateWorkerPanel() {
     if (!workerAssignmentsList) return;
+    const existingToggle = document.getElementById('auto-assign-toggle');
+    if (existingToggle) existingToggle.remove();
+    const toggleContainer = document.createElement('div');
+    toggleContainer.id = 'auto-assign-toggle';
+    toggleContainer.style.display = 'flex';
+    toggleContainer.style.alignItems = 'center';
+    toggleContainer.style.justifyContent = 'space-between';
+    toggleContainer.style.marginBottom = '0.6rem';
+    const label = document.createElement('label');
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = gameState.meta?.autoAssignWorkers ?? true;
+    checkbox.style.marginRight = '0.5rem';
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode('Auto-assign workers'));
+    const help = document.createElement('small');
+    help.style.opacity = '0.85';
+    help.textContent = 'Auto fills vacant workplace slots from unemployed people';
+    toggleContainer.appendChild(label);
+    toggleContainer.appendChild(help);
+    workerAssignmentsList.parentElement?.insertBefore(toggleContainer, workerAssignmentsList);
+    checkbox.addEventListener('change', () => {
+        setAutoAssign(checkbox.checked);
+        populateWorkerPanel();
+    });
     workerAssignmentsList.innerHTML = '';
     const workplaces = gameState.buildings.filter(b => buildingBlueprints[b.type].workersRequired);
     if (workplaces.length === 0) {
@@ -1522,6 +1563,7 @@ function populateWorkerPanel() {
         controlsDiv.style.gap = '0.5rem';
         const removeBtn = document.createElement('button');
         removeBtn.textContent = '-';
+        removeBtn.disabled = checkbox.checked;
         removeBtn.onclick = () => {
             if (building.workersAssigned > 0) {
                 building.workersAssigned--;
@@ -1533,12 +1575,11 @@ function populateWorkerPanel() {
             }
             }
         };
-
         const statusSpan = document.createElement('span');
         statusSpan.textContent = `${building.workersAssigned}/${blueprint.workersRequired}`;
-
         const addBtn = document.createElement('button');
         addBtn.textContent = '+';
+        addBtn.disabled = checkbox.checked;
         addBtn.onclick = () => {
             if (gameState.unemployedWorkers > 0 && building.workersAssigned < blueprint.workersRequired) {
                 building.workersAssigned++;
@@ -1557,6 +1598,38 @@ function populateWorkerPanel() {
         li.appendChild(controlsDiv);
         workerAssignmentsList.appendChild(li);
     });
+}
+function setAutoAssign(enabled) {
+    if (!gameState.meta) gameState.meta = getDefaultMeta();
+    gameState.meta.autoAssignWorkers = !!enabled;
+    saveGame();
+    if (enabled) autoAssignWorkers();
+}
+function autoAssignWorkers() {
+    if (!gameState.meta?.autoAssignWorkers) return;
+    if (!gameState.buildings || !gameState.population) return;
+    const priorityOrder = ['farm','woodcutter','quarry'];
+    for (const type of priorityOrder) {
+        for (const b of gameState.buildings.filter(x=>x.type===type)) {
+            const bp = buildingBlueprints[b.type];
+            if (!bp?.workersRequired) continue;
+            while ((b.workersAssigned || 0) < bp.workersRequired && gameState.unemployedWorkers > 0) {
+                b.workersAssigned = (b.workersAssigned || 0) + 1;
+                gameState.unemployedWorkers--;
+            }
+        }
+    }
+    for (const b of gameState.buildings) {
+        const bp = buildingBlueprints[b.type];
+        if (!bp?.workersRequired) continue;
+        while ((b.workersAssigned || 0) < bp.workersRequired && gameState.unemployedWorkers > 0) {
+            b.workersAssigned = (b.workersAssigned || 0) + 1;
+            gameState.unemployedWorkers--;
+        }
+    }
+    gameState.unemployedWorkers = Math.max(0, Math.min(gameState.unemployedWorkers, gameState.population));
+    updateUIDisplays();
+    populateWorkerPanel();
 }
 function populateResearchPanel() {
     if (!researchPanelElement) return;

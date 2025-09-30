@@ -24,11 +24,11 @@ const DEFAULT_META = {
 };
 
 const GAME_CONFIG = {
-    initialResources: { wood: 50, stone: 50, food: 100, sand: 0, glass: 0, tools: 20, knowledge: 0 },
+    initialResources: {wood: 80, stone: 50, food: 140, sand: 0, glass: 0, tools: 20, knowledge: 0},
     rates: {
-        foodConsumption: 0.002,
-        populationGrowthChance: 0.008,
-        initialPopulationGrowthChance: 0.01,
+        foodConsumption: 0.0015,
+        populationGrowthChance: 0.01,
+        initialPopulationGrowthChance: 0.015,
         happinessChangeSpeed: 0.0005
     },
     happiness: {
