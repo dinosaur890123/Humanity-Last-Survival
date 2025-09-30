@@ -1,0 +1,1 @@
+A highly strategy based colony builder game. Keep a city, and its inhabitants running alive and measure performance. Some of the buildings and structures were created with pixel art. Inspired by The Final Earth 2. Complete with a balanced gameplay, upgradable buildings, speed settings, random events and population growth. 
